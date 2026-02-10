@@ -1,0 +1,31 @@
+# OS-specific cruft
+.DS_Store
+Thumbs.db
+
+# Python bytecode / caches
+__pycache__/
+fin41360-group-asst/fin41360/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# FIN41360 assignment data (large, reproducible)
+fin41360_data/raw/
+fin41360_data/processed/
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+
