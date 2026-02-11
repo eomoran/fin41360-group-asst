@@ -197,7 +197,8 @@ def portfolio_stats(weights: np.ndarray, mu: np.ndarray, Sigma: np.ndarray) -> T
     Returns
     -------
     (mean_return, volatility)
-        Both in the same units as mu (e.g. monthly).
+        Both in the same units as mu (e.g. monthly). Volatility is the
+        standard deviation of portfolio return; no annualisation is applied.
     """
     w = np.asarray(weights).reshape(-1)
     mu = np.asarray(mu).reshape(-1)
