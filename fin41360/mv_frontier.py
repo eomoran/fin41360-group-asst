@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
+from scipy.optimize import minimize
 
 
 @dataclass
@@ -181,6 +182,66 @@ def tangency_weights(mu: np.ndarray, Sigma: np.ndarray, rf: float) -> np.ndarray
     return w
 
 
+def tangency_weights_constrained(
+    mu: np.ndarray,
+    Sigma: np.ndarray,
+    rf: float,
+    w_min: float = 0.0,
+) -> np.ndarray:
+    """
+    Tangency portfolio weights with a lower bound on each weight (e.g. no short-selling).
+
+    Maximizes Sharpe ratio (μ - r_f) / σ subject to sum(w) = 1 and w_i >= w_min
+    using numerical optimization.
+
+    Parameters
+    ----------
+    mu : np.ndarray, shape (N,)
+        Mean net returns.
+    Sigma : np.ndarray, shape (N, N)
+        Covariance of net returns.
+    rf : float
+        Risk-free rate (net, same units as mu).
+    w_min : float, default 0.0
+        Minimum allowed weight per asset (e.g. 0 for long-only, -1.0 to allow up to 100% short).
+
+    Returns
+    -------
+    w_tan : np.ndarray, shape (N,)
+        Constrained tangency portfolio weights, summing to 1.
+    """
+    mu = np.asarray(mu).reshape(-1)
+    Sigma = np.asarray(Sigma)
+    N = mu.shape[0]
+    ones = np.ones(N)
+    excess = mu - rf * ones
+
+    def neg_sharpe(w: np.ndarray) -> float:
+        ret = float(w @ excess)
+        var = float(w @ Sigma @ w)
+        if var <= 0 or ret <= 0:
+            return 1e10
+        return -ret / np.sqrt(var)
+
+    # Initial guess: equal weight clipped to [w_min, 1]
+    w0 = np.clip(np.ones(N) / N, w_min, 1.0)
+    w0 = w0 / w0.sum()
+
+    constraints = [{"type": "eq", "fun": lambda w: w.sum() - 1.0}]
+    bounds = [(w_min, None)] * N
+
+    res = minimize(
+        neg_sharpe,
+        w0,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+    )
+    if not res.success:
+        raise ValueError(f"Constrained tangency optimization failed: {res.message}")
+    return res.x
+
+
 def portfolio_stats(weights: np.ndarray, mu: np.ndarray, Sigma: np.ndarray) -> Tuple[float, float]:
     """
     Compute expected return and standard deviation for a given weight vector.
@@ -197,8 +258,7 @@ def portfolio_stats(weights: np.ndarray, mu: np.ndarray, Sigma: np.ndarray) -> T
     Returns
     -------
     (mean_return, volatility)
-        Both in the same units as mu (e.g. monthly). Volatility is the
-        standard deviation of portfolio return; no annualisation is applied.
+        Both in the same units as mu (e.g. monthly).
     """
     w = np.asarray(weights).reshape(-1)
     mu = np.asarray(mu).reshape(-1)
