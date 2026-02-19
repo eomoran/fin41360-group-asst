@@ -33,9 +33,9 @@ TAN_STYLE = {
 
 # --- Single series palette (no scope: one dict, series key is enough) ---
 SERIES = {
-    "sample": {"color": "C0", "linestyle": "-", "label": "Sample"},
-    "bs_mean": {"color": "C1", "linestyle": "--", "label": "BS-mean"},
-    "bs_mean_cov": {"color": "C2", "linestyle": ":", "label": "BS-mean+cov"},
+    "sample": {"color": "C0", "linestyle": "-", "label": "Sample (no shrinkage)"},
+    "bs_mean": {"color": "C1", "linestyle": "--", "label": "Bayes-Stein mean shrinkage"},
+    "bs_mean_cov": {"color": "C2", "linestyle": "-.", "label": "Bayes-Stein mean+cov shrinkage"},
     "industries": {"color": "C0", "linestyle": "-", "label": "Industries (excess)"},
     "cml": {"color": "C1", "label": "CML (industries + risk-free)"},
     "ff3": {"color": "C1", "linestyle": "-", "label": "FF3 factors (excess)"},
@@ -109,6 +109,10 @@ def style(
             out["facecolors"] = "none"
             out["edgecolors"] = ec
             out.pop("color", None)  # avoid scatter using 'color' and overriding face/edge
+
+    # Keep frontier/CML labels by default, suppress marker labels unless overridden.
+    if role in ("gmv", "tan") and label is None:
+        out["label"] = "_nolegend_"
 
     if label is not None:
         out["label"] = label

@@ -4,6 +4,7 @@ Thumbs.db
 
 # Python bytecode / caches
 __pycache__/
+**/__pycache__/
 fin41360/__pycache__/
 *.py[cod]
 *$py.class
@@ -30,3 +31,5 @@ fin41360_data/processed/
 *.tmp
 *.bak
 
+# Local project cache
+.cache/
