@@ -270,6 +270,72 @@ def portfolio_stats(weights: np.ndarray, mu: np.ndarray, Sigma: np.ndarray) -> T
     return mean_ret, vol
 
 
+def portfolio_sharpe(
+    weights: np.ndarray,
+    mu: np.ndarray,
+    Sigma: np.ndarray,
+    rf: float = 0.0,
+) -> float:
+    """
+    Sharpe ratio (excess return / vol) for a portfolio.
+
+    Parameters
+    ----------
+    weights : np.ndarray, shape (N,)
+        Portfolio weights (sum to 1).
+    mu : np.ndarray, shape (N,)
+        Mean net returns.
+    Sigma : np.ndarray, shape (N, N)
+        Covariance of net returns.
+    rf : float, default 0.0
+        Risk-free rate (net). Use 0 for excess-return space.
+
+    Returns
+    -------
+    float
+        (w'mu - rf) / sqrt(w'Sigma w), or nan if vol <= 0.
+    """
+    mean_ret, vol = portfolio_stats(weights, mu, Sigma)
+    excess = mean_ret - rf
+    if vol is None or vol <= 0:
+        return np.nan
+    return float(excess / vol)
+
+
+def hj_bound(mu: np.ndarray, Sigma: np.ndarray, rf: float = 0.0) -> float:
+    """
+    Hansen–Jagannathan bound: maximum Sharpe ratio in the asset space.
+
+    For net returns and risk-free rate rf, the maximum Sharpe (in absolute value)
+    is sqrt((μ - rf 1)' Σ^{-1} (μ - rf 1)). For excess returns (rf=0), use mu
+    as the excess mean vector.
+
+    Parameters
+    ----------
+    mu : np.ndarray, shape (N,)
+        Mean net returns (or excess returns if rf=0).
+    Sigma : np.ndarray, shape (N, N)
+        Covariance of net returns.
+    rf : float, default 0.0
+        Risk-free rate (net). Use 0 when mu is already in excess-return form.
+
+    Returns
+    -------
+    float
+        Maximum achievable Sharpe ratio (monthly if inputs are monthly).
+    """
+    mu = np.asarray(mu).reshape(-1)
+    Sigma = np.asarray(Sigma)
+    N = mu.shape[0]
+    ones = np.ones(N)
+    mu_e = mu - rf * ones
+    Sigma_inv = np.linalg.pinv(Sigma)
+    quad = float(mu_e @ Sigma_inv @ mu_e)
+    if quad <= 0:
+        return 0.0
+    return float(np.sqrt(quad))
+
+
 def efficient_frontier(
     mu: np.ndarray,
     Sigma: np.ndarray,
