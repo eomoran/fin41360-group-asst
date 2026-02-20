@@ -14,11 +14,13 @@ import pandas as pd
 
 from .bayes_stein import bayes_stein_means, shrink_covariance_identity
 from .frontier_workflow import (
+    build_cml,
     build_frontier_curve,
     build_mu_range,
     gmv_tan_stats,
     summarize_sharpe_is_oos,
 )
+from .stock_data import get_common_sample_period
 from .mv_frontier import (
     compute_moments_from_gross,
     compute_moments_from_net,
@@ -37,6 +39,7 @@ def run_scope2_industries_sample_vs_bs(
     ind_gross: pd.DataFrame,
     rf_gross: pd.Series,
     cov_shrink: float = 0.1,
+    tan_return_mult: float = 1.2,
     n_points: int = 200,
 ) -> dict[str, Any]:
     """
@@ -81,6 +84,7 @@ def run_scope2_industries_sample_vs_bs(
         summary_rows.append(
             {
                 "label": label,
+                "universe": "industries",
                 "portfolio": "GMV",
                 "mean": st["stats"]["gmv"]["mean"],
                 "vol": st["stats"]["gmv"]["vol"],
@@ -93,6 +97,7 @@ def run_scope2_industries_sample_vs_bs(
         summary_rows.append(
             {
                 "label": label,
+                "universe": "industries",
                 "portfolio": "TAN",
                 "mean": st["stats"]["tan"]["mean"],
                 "vol": st["stats"]["tan"]["vol"],
@@ -102,14 +107,9 @@ def run_scope2_industries_sample_vs_bs(
         )
     summary_gmv_tan = pd.DataFrame(summary_rows)
 
-    mu_targets = [
-        mu_sample,
-        mu_bs,
-        np.array([stats["sample"]["stats"]["gmv"]["mean"], stats["sample"]["stats"]["tan"]["mean"]]),
-        np.array([stats["bs_mean"]["stats"]["gmv"]["mean"], stats["bs_mean"]["stats"]["tan"]["mean"]]),
-        np.array([stats["bs_mean_cov"]["stats"]["gmv"]["mean"], stats["bs_mean_cov"]["stats"]["tan"]["mean"]]),
-    ]
-    mu_min, mu_max = build_mu_range(mu_targets, pad=0.001)
+    max_tan_mean = max(float(stats[k]["stats"]["tan"]["mean"]) for k in ("sample", "bs_mean", "bs_mean_cov"))
+    mu_min = 0.0
+    mu_max = max(0.001, tan_return_mult * max_tan_mean)
     curves = {
         label: build_frontier_curve(m["mu"], m["Sigma"], n_points=n_points, mu_min=mu_min, mu_max=mu_max)
         for label, m in models.items()
@@ -136,7 +136,7 @@ def run_scope2_industries_sample_vs_bs(
         },
         "models": models,
         "summary_tables": {"gmv_tan": summary_gmv_tan},
-        "plot_data": {"curves": curves, "points": points},
+        "plot_data": {"curves": curves, "points": points, "range": {"mu_min": mu_min, "mu_max": mu_max}},
         "diagnostics": {
             "bs_mean_shrinkage_intensity": bs.shrinkage_intensity,
             "bs_target_mean": bs.target_mean,
@@ -153,23 +153,225 @@ def run_scope3_industries_vs_stocks(
     stocks_gross: pd.DataFrame,
     rf_gross: pd.Series,
     cov_shrink: float = 0.1,
+    tan_return_mult: float = 1.2,
     n_points: int = 200,
 ) -> dict[str, Any]:
     """
-    Placeholder for Scope 3 workflow.
+    Scope 3: compare 30 industries vs 30 stocks on a common sample period.
+
+    Repeats sample / BS-mean / BS-mean+cov frontier construction for both
+    universes and returns structured tables + plot data.
     """
-    raise NotImplementedError("Scope 3 workflow scaffolded but not implemented yet.")
+    if ind_gross.empty:
+        raise ValueError("ind_gross is empty")
+    if stocks_gross.empty:
+        raise ValueError("stocks_gross is empty")
+    if rf_gross.empty:
+        raise ValueError("rf_gross is empty")
+
+    common_start, common_end = get_common_sample_period(ind_gross, stocks_gross)
+    ind_common = ind_gross.loc[common_start:common_end].dropna(how="any")
+    stocks_common = stocks_gross.loc[common_start:common_end].dropna(how="any")
+
+    common_idx = ind_common.index.intersection(stocks_common.index).intersection(rf_gross.index).sort_values()
+    if len(common_idx) == 0:
+        raise ValueError("No common period across industries, stocks, and risk-free series.")
+
+    ind_common = ind_common.loc[common_idx]
+    stocks_common = stocks_common.loc[common_idx]
+    rf_common = (rf_gross.loc[common_idx] - 1.0).astype(float)
+    rf_mean = float(rf_common.mean())
+
+    mu_ind, Sigma_ind = compute_moments_from_gross(ind_common.values)
+    mu_stk, Sigma_stk = compute_moments_from_gross(stocks_common.values)
+
+    T_common = len(common_idx)
+    bs_ind = bayes_stein_means(mu_ind, Sigma_ind, T=T_common)
+    bs_stk = bayes_stein_means(mu_stk, Sigma_stk, T=T_common)
+    Sigma_ind_bs = shrink_covariance_identity(Sigma_ind, shrinkage=cov_shrink)
+    Sigma_stk_bs = shrink_covariance_identity(Sigma_stk, shrinkage=cov_shrink)
+
+    models = {
+        "sample": {
+            "industry": {"mu": mu_ind, "Sigma": Sigma_ind},
+            "stock": {"mu": mu_stk, "Sigma": Sigma_stk},
+        },
+        "bs_mean": {
+            "industry": {"mu": bs_ind.mu_bs, "Sigma": Sigma_ind},
+            "stock": {"mu": bs_stk.mu_bs, "Sigma": Sigma_stk},
+        },
+        "bs_mean_cov": {
+            "industry": {"mu": bs_ind.mu_bs, "Sigma": Sigma_ind_bs},
+            "stock": {"mu": bs_stk.mu_bs, "Sigma": Sigma_stk_bs},
+        },
+    }
+
+    stats = {}
+    for est, universes in models.items():
+        stats[est] = {}
+        for universe, payload in universes.items():
+            stats[est][universe] = gmv_tan_stats(payload["mu"], payload["Sigma"], rf=rf_mean)
+
+    summary_rows = []
+    for est in ("sample", "bs_mean", "bs_mean_cov"):
+        for universe in ("industry", "stock"):
+            st = stats[est][universe]["stats"]
+            summary_rows.append(
+                {
+                    "estimator": est,
+                    "universe": universe,
+                    "portfolio": "GMV",
+                    "mean": st["gmv"]["mean"],
+                    "vol": st["gmv"]["vol"],
+                    "excess_mean": st["gmv"]["excess_mean"],
+                    "sharpe": st["gmv"]["excess_mean"] / st["gmv"]["vol"] if st["gmv"]["vol"] > 0 else np.nan,
+                }
+            )
+            summary_rows.append(
+                {
+                    "estimator": est,
+                    "universe": universe,
+                    "portfolio": "TAN",
+                    "mean": st["tan"]["mean"],
+                    "vol": st["tan"]["vol"],
+                    "excess_mean": st["tan"]["excess_mean"],
+                    "sharpe": st["tan"]["sharpe"],
+                }
+            )
+    summary_df = pd.DataFrame(summary_rows)
+
+    max_tan_mean = max(
+        float(stats[est][universe]["stats"]["tan"]["mean"])
+        for est in ("sample", "bs_mean", "bs_mean_cov")
+        for universe in ("industry", "stock")
+    )
+    mu_min = 0.0
+    mu_max = max(0.001, tan_return_mult * max_tan_mean)
+
+    curves = {}
+    points = {}
+    for est in ("sample", "bs_mean", "bs_mean_cov"):
+        curves[est] = {}
+        points[est] = {}
+        for universe in ("industry", "stock"):
+            payload = models[est][universe]
+            curves[est][universe] = build_frontier_curve(
+                payload["mu"],
+                payload["Sigma"],
+                n_points=n_points,
+                mu_min=mu_min,
+                mu_max=mu_max,
+            )
+            points[est][universe] = {
+                "gmv": stats[est][universe]["stats"]["gmv"],
+                "tan": stats[est][universe]["stats"]["tan"],
+            }
+
+    return {
+        "inputs": {
+            "common_start": common_idx.min().strftime("%Y-%m"),
+            "common_end": common_idx.max().strftime("%Y-%m"),
+            "n_obs": int(T_common),
+            "n_assets_industry": int(ind_common.shape[1]),
+            "n_assets_stock": int(stocks_common.shape[1]),
+            "rf_mean": rf_mean,
+        },
+        "models": models,
+        "summary_tables": {"gmv_tan": summary_df},
+        "plot_data": {"curves": curves, "points": points, "range": {"mu_min": mu_min, "mu_max": mu_max}},
+        "diagnostics": {
+            "bs_industry_shrinkage_intensity": bs_ind.shrinkage_intensity,
+            "bs_stock_shrinkage_intensity": bs_stk.shrinkage_intensity,
+            "note": "Scope 3 frontiers are estimated on overlapping dates with complete data.",
+        },
+    }
 
 
 def run_scope4_industries_with_rf(
     ind_gross: pd.DataFrame,
     rf_gross: pd.Series,
+    tan_return_mult: float = 1.2,
     n_points: int = 200,
 ) -> dict[str, Any]:
     """
-    Placeholder for Scope 4 workflow.
+    Scope 4: industries + risk-free asset using sample estimates.
+
+    Returns risky frontier, CML, GMV/TAN stats, and aligned sample metadata.
     """
-    raise NotImplementedError("Scope 4 workflow scaffolded but not implemented yet.")
+    if ind_gross.empty:
+        raise ValueError("ind_gross is empty")
+    if rf_gross.empty:
+        raise ValueError("rf_gross is empty")
+
+    common_idx = ind_gross.index.intersection(rf_gross.index).sort_values()
+    if len(common_idx) == 0:
+        raise ValueError("No overlapping dates between industry and risk-free series.")
+
+    ind_aligned = ind_gross.loc[common_idx]
+    rf_net = (rf_gross.loc[common_idx] - 1.0).astype(float)
+    rf_mean = float(rf_net.mean())
+
+    mu, Sigma = compute_moments_from_gross(ind_aligned.values)
+    stats = gmv_tan_stats(mu, Sigma, rf=rf_mean)
+
+    mu_min = 0.0
+    mu_max = max(0.001, tan_return_mult * float(stats["stats"]["tan"]["mean"]))
+    curve = build_frontier_curve(mu, Sigma, n_points=n_points, mu_min=mu_min, mu_max=mu_max)
+
+    # Use same x-range for CML and risky frontier.
+    x_max = float(curve["vols"].max())
+    cml_vol, cml_mean = build_cml(
+        sharpe_tan=float(stats["stats"]["tan"]["sharpe"]),
+        vol_max=x_max,
+        rf=rf_mean,
+        n_points=150,
+    )
+
+    summary = pd.DataFrame(
+        [
+            {
+                "universe": "industries",
+                "portfolio": "GMV",
+                "mean": stats["stats"]["gmv"]["mean"],
+                "vol": stats["stats"]["gmv"]["vol"],
+                "excess_mean": stats["stats"]["gmv"]["excess_mean"],
+                "sharpe": stats["stats"]["gmv"]["excess_mean"] / stats["stats"]["gmv"]["vol"]
+                if stats["stats"]["gmv"]["vol"] > 0
+                else np.nan,
+            },
+            {
+                "universe": "industries",
+                "portfolio": "TAN",
+                "mean": stats["stats"]["tan"]["mean"],
+                "vol": stats["stats"]["tan"]["vol"],
+                "excess_mean": stats["stats"]["tan"]["excess_mean"],
+                "sharpe": stats["stats"]["tan"]["sharpe"],
+            },
+        ]
+    )
+
+    return {
+        "inputs": {
+            "start": common_idx.min().strftime("%Y-%m"),
+            "end": common_idx.max().strftime("%Y-%m"),
+            "n_obs": int(len(common_idx)),
+            "n_assets": int(ind_aligned.shape[1]),
+            "rf_mean": rf_mean,
+        },
+        "summary_tables": {"gmv_tan": summary},
+        "plot_data": {
+            "curve": curve,
+            "cml": {"vols": cml_vol, "means": cml_mean},
+            "range": {"mu_min": mu_min, "mu_max": mu_max, "x_max": x_max},
+            "points": {
+                "gmv": stats["stats"]["gmv"],
+                "tan": stats["stats"]["tan"],
+            },
+        },
+        "diagnostics": {
+            "note": "Scope 4 efficient set combines risky frontier and CML through tangency."
+        },
+    }
 
 
 def run_scope5_industries_vs_ff(
@@ -177,12 +379,120 @@ def run_scope5_industries_vs_ff(
     ff3_excess: pd.DataFrame,
     ff5_excess: pd.DataFrame,
     rf_gross: pd.Series,
+    tan_return_mult: float = 1.2,
     n_points: int = 200,
 ) -> dict[str, Any]:
     """
-    Placeholder for Scope 5 workflow.
+    Scope 5: compare industries (excess) vs FF3 vs FF5 in excess-return space.
     """
-    raise NotImplementedError("Scope 5 workflow scaffolded but not implemented yet.")
+    if ind_gross.empty:
+        raise ValueError("ind_gross is empty")
+    if ff3_excess.empty:
+        raise ValueError("ff3_excess is empty")
+    if ff5_excess.empty:
+        raise ValueError("ff5_excess is empty")
+    if rf_gross.empty:
+        raise ValueError("rf_gross is empty")
+
+    common_idx = (
+        ind_gross.index.intersection(ff3_excess.index).intersection(ff5_excess.index).intersection(rf_gross.index)
+    ).sort_values()
+    if len(common_idx) == 0:
+        raise ValueError("No overlapping dates across industries, FF3, FF5, and RF.")
+
+    ind_net = (ind_gross.loc[common_idx] - 1.0).astype(float)
+    rf_net = (rf_gross.loc[common_idx] - 1.0).astype(float)
+    ind_excess = ind_net.sub(rf_net, axis=0)
+    ff3 = ff3_excess.loc[common_idx].astype(float)
+    ff5 = ff5_excess.loc[common_idx].astype(float)
+
+    mu_ind, Sigma_ind = compute_moments_from_net(ind_excess.values)
+    mu_ff3, Sigma_ff3 = compute_moments_from_net(ff3.values)
+    mu_ff5, Sigma_ff5 = compute_moments_from_net(ff5.values)
+
+    models = {
+        "industries": {"mu": mu_ind, "Sigma": Sigma_ind},
+        "ff3": {"mu": mu_ff3, "Sigma": Sigma_ff3},
+        "ff5": {"mu": mu_ff5, "Sigma": Sigma_ff5},
+    }
+    stats = {k: gmv_tan_stats(v["mu"], v["Sigma"], rf=0.0) for k, v in models.items()}
+
+    summary_rows = []
+    for key in ("industries", "ff3", "ff5"):
+        st = stats[key]["stats"]
+        summary_rows.append(
+            {
+                "series": key,
+                "universe": key,
+                "portfolio": "GMV",
+                "mean": st["gmv"]["mean"],
+                "vol": st["gmv"]["vol"],
+                "excess_mean": st["gmv"]["excess_mean"],
+                "sharpe": st["gmv"]["excess_mean"] / st["gmv"]["vol"] if st["gmv"]["vol"] > 0 else np.nan,
+            }
+        )
+        summary_rows.append(
+            {
+                "series": key,
+                "universe": key,
+                "portfolio": "TAN",
+                "mean": st["tan"]["mean"],
+                "vol": st["tan"]["vol"],
+                "excess_mean": st["tan"]["excess_mean"],
+                "sharpe": st["tan"]["sharpe"],
+            }
+        )
+    summary_df = pd.DataFrame(summary_rows)
+
+    max_tan_mean = max(float(points["tan"]["mean"]) for points in [stats["industries"]["stats"], stats["ff3"]["stats"], stats["ff5"]["stats"]])
+    mu_min = 0.0
+    mu_max = max(0.001, tan_return_mult * max_tan_mean)
+    curves = {
+        key: build_frontier_curve(models[key]["mu"], models[key]["Sigma"], n_points=n_points, mu_min=mu_min, mu_max=mu_max)
+        for key in ("industries", "ff3", "ff5")
+    }
+    points = {
+        key: {
+            "gmv": stats[key]["stats"]["gmv"],
+            "tan": stats[key]["stats"]["tan"],
+        }
+        for key in ("industries", "ff3", "ff5")
+    }
+
+    # Set x_max from the CML with greatest slope:
+    # target return = tan_return_mult * max tangency mean
+    # x_max = target_return / max_slope
+    max_slope = max(float(points[k]["tan"]["sharpe"]) for k in points.keys())
+    x_max = float(mu_max / max(max_slope, 1e-10))
+    cml = {}
+    for key in ("industries", "ff3", "ff5"):
+        cml_vol, cml_mean = build_cml(
+            sharpe_tan=float(points[key]["tan"]["sharpe"]),
+            vol_max=x_max,
+            rf=0.0,
+            n_points=150,
+        )
+        cml[key] = {"vols": cml_vol, "means": cml_mean}
+
+    return {
+        "inputs": {
+            "start": common_idx.min().strftime("%Y-%m"),
+            "end": common_idx.max().strftime("%Y-%m"),
+            "n_obs": int(len(common_idx)),
+            "space": "excess returns (rf=0)",
+        },
+        "models": models,
+        "summary_tables": {"gmv_tan": summary_df},
+        "plot_data": {
+            "curves": curves,
+            "points": points,
+            "cml": cml,
+            "range": {"mu_min": mu_min, "mu_max": mu_max, "x_max": x_max},
+        },
+        "diagnostics": {
+            "note": "Industries are converted to excess returns before comparison to FF3/FF5."
+        },
+    }
 
 
 def run_scope6_ff_vs_proxies(

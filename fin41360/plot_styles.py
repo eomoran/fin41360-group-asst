@@ -50,13 +50,13 @@ PROXY_LABELS = {"ff3": "Proxy-3 ETFs", "ff5": "Proxy-5 ETFs"}
 ESTIMATOR_STYLE = {k: v for k, v in SERIES.items() if k in ("sample", "bs_mean", "bs_mean_cov")}
 SCOPE3_PLOT_STYLE = {
     "estimator": {
-        "sample": {"color": "C0", "label": "Sample estimates"},
-        "bs_mean": {"color": "C1", "label": "BS means"},
-        "bs_mean_cov": {"color": "C2", "label": "BS mean+cov"},
+        "sample": {"linestyle": "-", "label": "Sample estimates"},
+        "bs_mean": {"linestyle": "--", "label": "BS means"},
+        "bs_mean_cov": {"linestyle": "-.", "label": "BS mean+cov"},
     },
     "universe": {
-        "industry": {"linestyle": "-", "label": "30 industries"},
-        "stock": {"linestyle": "--", "label": "30 stocks"},
+        "industry": {"color": "C0", "label": "30 industries"},
+        "stock": {"color": "C3", "label": "30 stocks"},
     },
     "portfolio_marker": {"GMV": "o", "TAN": "^"},
 }
