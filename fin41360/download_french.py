@@ -96,6 +96,7 @@ def discover_available_files() -> AvailableFiles:
 def _find_file_by_keywords(
     available: AvailableFiles,
     keywords: List[str],
+    exclude_keywords: Optional[List[str]] = None,
     prefer_csv: bool = True,
 ) -> Optional[str]:
     """
@@ -107,13 +108,18 @@ def _find_file_by_keywords(
         Discovered filenames and URL map.
     keywords : list of str
         All keywords must appear in the filename.
+    exclude_keywords : list of str, optional
+        If provided, none of these keywords may appear in the filename.
     prefer_csv : bool, default True
         If True, prefer filenames that contain '_CSV'.
     """
+    exclude_keywords = exclude_keywords or []
     matches: List[str] = []
     for filename in available.filenames:
         name_upper = filename.upper()
         if all(kw.upper() in name_upper for kw in keywords):
+            if any(kw.upper() in name_upper for kw in exclude_keywords):
+                continue
             matches.append(filename)
 
     if not matches:
@@ -202,10 +208,11 @@ def download_ff_factor_zips(available: Optional[AvailableFiles] = None) -> Tuple
     if available is None:
         available = discover_available_files()
 
-    # 3-factor model: look for the standard "F-F_Research_Data_Factors" monthly file.
+    # 3-factor model: "F-F_Research_Data_Factors" (exclude 5-factor variants).
     ff3_name = _find_file_by_keywords(
         available,
         keywords=["F-F", "Research", "Data", "Factors"],
+        exclude_keywords=["5_Factors", "2x3"],
         prefer_csv=True,
     )
     if ff3_name is None:
@@ -219,6 +226,11 @@ def download_ff_factor_zips(available: Optional[AvailableFiles] = None) -> Tuple
     )
     if ff5_name is None:
         raise RuntimeError("Could not find Fama–French 5-factor (2x3) ZIP.")
+    if ff5_name == ff3_name:
+        raise RuntimeError(
+            f"FF3 and FF5 resolved to the same file ({ff3_name}). "
+            "Check keyword filters in download_ff_factor_zips()."
+        )
 
     ff3_zip = _download_zip(available.url_map[ff3_name], RAW_DIR / ff3_name, "Fama–French 3-Factor model")
     ff5_zip = _download_zip(available.url_map[ff5_name], RAW_DIR / ff5_name, "Fama–French 5-Factor model")
@@ -240,4 +252,3 @@ def download_all_core_french_zips() -> Tuple[Path, Path, Path]:
     ind_zip = download_industry_30_zip(available)
     ff3_zip, ff5_zip = download_ff_factor_zips(available)
     return ind_zip, ff3_zip, ff5_zip
-
