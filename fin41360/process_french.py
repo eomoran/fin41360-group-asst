@@ -277,19 +277,13 @@ def load_ff3_monthly(start: str = "1980-01", end: str = "2025-12") -> Tuple[pd.D
     """
     Load Fama–French 3-factor monthly data (factors in excess returns, RF in gross form).
 
-    Note: We source these from the 5-factor (2x3) monthly file, which contains
-    the 3-factor set as a subset of columns. This avoids needing a separate
-    download for the 3-factor file and is consistent with the assignment needs.
-
     Returns
     -------
     (factors, rf)
         factors : DataFrame with columns ['Mkt-RF', 'SMB', 'HML']
         rf : Series with gross risk-free returns (R_f = 1 + r_f)
     """
-    # EXPLAIN: We use the same processed FF5 monthly file as in `load_ff5_monthly`
-    # and simply select the 3-factor subset (Mkt-RF, SMB, HML).
-    pattern = "*5_Factors_2x3*Value_Weighted*Monthly*.csv"
+    pattern = "*F-F_Research_Data_Factors*Monthly*.csv"
     matches = list(PROCESSED_DIR.glob(pattern))
     if not matches:
         raise FileNotFoundError(
@@ -335,4 +329,3 @@ def load_ff5_monthly(start: str = "1980-01", end: str = "2025-12") -> Tuple[pd.D
     rf = df["RF"].copy()
     factors = df[["Mkt-RF", "SMB", "HML", "RMW", "CMA"]].copy()
     return factors, rf
-

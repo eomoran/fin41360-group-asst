@@ -33,9 +33,9 @@ TAN_STYLE = {
 
 # --- Single series palette (no scope: one dict, series key is enough) ---
 SERIES = {
-    "sample": {"color": "C0", "linestyle": "-", "label": "Sample"},
-    "bs_mean": {"color": "C1", "linestyle": "--", "label": "BS-mean"},
-    "bs_mean_cov": {"color": "C2", "linestyle": ":", "label": "BS-mean+cov"},
+    "sample": {"color": "C0", "linestyle": "-", "label": "Sample (no shrinkage)"},
+    "bs_mean": {"color": "C1", "linestyle": "--", "label": "Bayes-Stein mean shrinkage"},
+    "bs_mean_cov": {"color": "C2", "linestyle": "-.", "label": "Bayes-Stein mean+cov shrinkage"},
     "industries": {"color": "C0", "linestyle": "-", "label": "Industries (excess)"},
     "cml": {"color": "C1", "label": "CML (industries + risk-free)"},
     "ff3": {"color": "C1", "linestyle": "-", "label": "FF3 factors (excess)"},
@@ -50,13 +50,13 @@ PROXY_LABELS = {"ff3": "Proxy-3 ETFs", "ff5": "Proxy-5 ETFs"}
 ESTIMATOR_STYLE = {k: v for k, v in SERIES.items() if k in ("sample", "bs_mean", "bs_mean_cov")}
 SCOPE3_PLOT_STYLE = {
     "estimator": {
-        "sample": {"color": "C0", "label": "Sample estimates"},
-        "bs_mean": {"color": "C1", "label": "BS means"},
-        "bs_mean_cov": {"color": "C2", "label": "BS mean+cov"},
+        "sample": {"linestyle": "-", "label": "Sample estimates"},
+        "bs_mean": {"linestyle": "--", "label": "BS means"},
+        "bs_mean_cov": {"linestyle": "-.", "label": "BS mean+cov"},
     },
     "universe": {
-        "industry": {"linestyle": "-", "label": "30 industries"},
-        "stock": {"linestyle": "--", "label": "30 stocks"},
+        "industry": {"color": "C0", "label": "30 industries"},
+        "stock": {"color": "C3", "label": "30 stocks"},
     },
     "portfolio_marker": {"GMV": "o", "TAN": "^"},
 }
@@ -109,6 +109,10 @@ def style(
             out["facecolors"] = "none"
             out["edgecolors"] = ec
             out.pop("color", None)  # avoid scatter using 'color' and overriding face/edge
+
+    # Keep frontier/CML labels by default, suppress marker labels unless overridden.
+    if role in ("gmv", "tan") and label is None:
+        out["label"] = "_nolegend_"
 
     if label is not None:
         out["label"] = label
