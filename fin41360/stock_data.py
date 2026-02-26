@@ -72,11 +72,148 @@ INDUSTRY_TICKERS = {
     "Other": "MMM",
 }
 
+LEGACY_STOCK_GROSS_FILE = "stock_30_monthly_gross.csv"
+BALANCED_STOCK_NET_FILE = "clean_30_stocks_monthly_returns_balanced_1990_2025.csv"
+
+# Proposed/manual crosswalk for the balanced long-history stock set.
+# IMPORTANT: this is not an official Ken French / CRSP mapping for the FF30
+# industry portfolios. It is a project crosswalk for "one stock per industry"
+# style analysis and should be reviewed before final submission.
+BALANCED_STOCK_FF30_CROSSWALK = {
+    "KO": "Food",
+    "MO": "Smoke",
+    "DIS": "Games",
+    "PFE": "Hlth",
+    "DD": "Chems",
+    "NKE": "Clths",
+    "LEN": "Cnstr",
+    "NUE": "Steel",
+    "HON": "FabPr",
+    "GE": "ElcEq",
+    "F": "Autos",
+    "BA": "Carry",
+    "NEM": "Mines",
+    "XOM": "Oil",
+    "DUK": "Util",
+    "T": "Telcm",
+    "ADP": "Servs",
+    "IBM": "BusEq",
+    "FRT": "Paper",
+    "FDX": "Trans",
+    "COST": "Whlsl",
+    "WMT": "Rtail",
+    "MMM": "Other",
+    "JPM": "Fin",
+    # Lower-confidence / no direct obvious FF30 analogue in the chosen balanced set:
+    "AIG": "Beer",
+    "AXP": "Books",
+    "CAT": "Txtls",
+    "INTC": "Coal",
+    "UNH": "Hshld",
+    "MSFT": "Meals",
+}
+
+
+def _ff30_industry_order() -> list[str]:
+    return list(INDUSTRY_TICKERS.keys())
+
+
+def _load_legacy_cached_stock_gross(start: str, end: str) -> pd.DataFrame:
+    cache_path = PROCESSED_DIR / LEGACY_STOCK_GROSS_FILE
+    df = pd.read_csv(cache_path, index_col=0, parse_dates=True)
+    df = df.loc[start:end]
+    df.index = df.index.to_period("M").to_timestamp("M")
+    df = df.reindex(columns=_ff30_industry_order())
+    df.attrs["stock_source"] = "legacy_cached_gross"
+    df.attrs["stock_source_file"] = str(cache_path)
+    return df
+
+
+def _load_balanced_stock_net_as_gross(start: str, end: str) -> pd.DataFrame:
+    path = PROCESSED_DIR / BALANCED_STOCK_NET_FILE
+    df = pd.read_csv(path, index_col=0, parse_dates=True)
+    # File stores monthly net returns with month-start-like stamps (e.g., 1990-01-01)
+    # Convert to month-end and gross returns for compatibility with the frontier pipeline.
+    df.index = pd.to_datetime(df.index).to_period("M").to_timestamp("M")
+    df = 1.0 + df
+    df = df.sort_index().loc[start:end]
+    df.attrs["stock_source"] = "balanced_clean_net_to_gross"
+    df.attrs["stock_source_file"] = str(path)
+    return df
+
+
+def stock_mapping_tables() -> dict[str, pd.DataFrame]:
+    """
+    Return explicit stock->industry mapping tables for the stock CSV datasets.
+
+    `legacy_cached_gross` is the exact crosswalk used by `INDUSTRY_TICKERS`.
+    `balanced_clean_proposed` is a project/manual proposed crosswalk and should
+    be reviewed for final-report accuracy (especially "Other" and weak matches).
+    """
+    legacy_rows = []
+    for industry, ticker in INDUSTRY_TICKERS.items():
+        legacy_rows.append(
+            {
+                "dataset": "legacy_cached_gross",
+                "dataset_file": LEGACY_STOCK_GROSS_FILE,
+                "ticker": ticker,
+                "ff30_industry": industry,
+                "mapping_status": "manual_project_selection",
+                "confidence": "high",
+                "official_ff_crsp": False,
+                "notes": "Original project one-stock-per-industry ticker list (manual).",
+            }
+        )
+
+    balanced_rows = []
+    low_conf = {"AIG", "AXP", "CAT", "INTC", "UNH", "MSFT"}
+    for ticker in sorted(BALANCED_STOCK_FF30_CROSSWALK):
+        industry = BALANCED_STOCK_FF30_CROSSWALK[ticker]
+        confidence = "low" if ticker in low_conf else "medium"
+        note = (
+            "Proposed approximate FF30 crosswalk; no obvious direct match in balanced set."
+            if ticker in low_conf
+            else "Proposed project crosswalk for balanced long-history stock set."
+        )
+        balanced_rows.append(
+            {
+                "dataset": "balanced_clean_proposed",
+                "dataset_file": BALANCED_STOCK_NET_FILE,
+                "ticker": ticker,
+                "ff30_industry": industry,
+                "mapping_status": "proposed_manual_crosswalk",
+                "confidence": confidence,
+                "official_ff_crsp": False,
+                "notes": note,
+            }
+        )
+
+    return {
+        "legacy_cached_gross": pd.DataFrame(legacy_rows).sort_values(["ff30_industry", "ticker"]).reset_index(drop=True),
+        "balanced_clean_proposed": pd.DataFrame(balanced_rows).sort_values(["ff30_industry", "ticker"]).reset_index(drop=True),
+    }
+
+
+def write_stock_mapping_tables(out_dir: Optional[str | Path] = None) -> dict[str, Path]:
+    """
+    Write stock mapping tables to CSV files (default: `PROCESSED_DIR`).
+    """
+    target = Path(out_dir) if out_dir is not None else PROCESSED_DIR
+    target.mkdir(parents=True, exist_ok=True)
+    tables = stock_mapping_tables()
+    out = {}
+    for name, df in tables.items():
+        path = target / f"{name}_stock_to_ff30_mapping.csv"
+        df.to_csv(path, index=False)
+        out[name] = path
+    return out
+
 
 def load_stock_returns_monthly(
     start: str = "1980-01",
     end: str = "2025-12",
     use_cache: bool = True,
+    source: str = "auto",
 ) -> pd.DataFrame:
     """
     Load monthly gross returns for the 30 stocks (one per industry).
@@ -89,6 +226,12 @@ def load_stock_returns_monthly(
     use_cache : bool, default True
         If True, read from or write to a CSV in PROCESSED_DIR to avoid
         repeated API calls.
+    source : {'auto', 'balanced', 'legacy', 'yfinance'}
+        - 'auto' (default): prefer balanced long-history processed file if present,
+          else legacy cached gross file if present, else fetch via yfinance.
+        - 'balanced': load balanced processed CSV (net returns) and convert to gross.
+        - 'legacy': load legacy cached gross CSV (industry-labeled columns).
+        - 'yfinance': always fetch and optionally refresh legacy cache.
 
     Returns
     -------
@@ -98,21 +241,35 @@ def load_stock_returns_monthly(
         Values: gross returns (R = 1 + r). May contain NaN for months
         where a ticker was not yet listed or data is missing.
     """
+    cache_path = PROCESSED_DIR / LEGACY_STOCK_GROSS_FILE
+    balanced_path = PROCESSED_DIR / BALANCED_STOCK_NET_FILE
+
+    source = source.lower()
+    if source not in {"auto", "balanced", "legacy", "yfinance"}:
+        raise ValueError("source must be one of {'auto', 'balanced', 'legacy', 'yfinance'}")
+
+    if source == "balanced":
+        if not balanced_path.exists():
+            raise FileNotFoundError(f"Balanced stock file not found: {balanced_path}")
+        return _load_balanced_stock_net_as_gross(start=start, end=end)
+
+    if source == "legacy":
+        if not cache_path.exists():
+            raise FileNotFoundError(f"Legacy stock gross cache not found: {cache_path}")
+        return _load_legacy_cached_stock_gross(start=start, end=end)
+
+    if source == "auto":
+        if use_cache and balanced_path.exists():
+            return _load_balanced_stock_net_as_gross(start=start, end=end)
+        if use_cache and cache_path.exists():
+            return _load_legacy_cached_stock_gross(start=start, end=end)
+
     try:
         import yfinance as yf
     except ImportError:
         raise ImportError(
             "yfinance is required for stock data. Install with: pip install yfinance"
         )
-
-    cache_name = "stock_30_monthly_gross.csv"
-    cache_path = PROCESSED_DIR / cache_name
-
-    if use_cache and cache_path.exists():
-        df = pd.read_csv(cache_path, index_col=0, parse_dates=True)
-        df = df.loc[start:end]
-        df.index = df.index.to_period("M").to_timestamp("M")
-        return df
 
     industries = list(INDUSTRY_TICKERS.keys())
     tickers = list(INDUSTRY_TICKERS.values())
@@ -157,6 +314,8 @@ def load_stock_returns_monthly(
     if use_cache:
         PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
         df.to_csv(cache_path)
+    df.attrs["stock_source"] = "yfinance_fetched_gross"
+    df.attrs["stock_source_file"] = str(cache_path)
 
     return df
 

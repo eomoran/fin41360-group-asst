@@ -26,6 +26,7 @@ from .mv_frontier import (
     compute_moments_from_net,
     gmv_weights,
     portfolio_stats,
+    tangency_weights_constrained,
     tangency_weights,
 )
 from .sharpe_tests import (
@@ -40,7 +41,7 @@ def run_scope2_industries_sample_vs_bs(
     rf_gross: pd.Series,
     cov_shrink: float = 0.1,
     tan_return_mult: float = 1.2,
-    n_points: int = 200,
+    n_points: int = 1200,
 ) -> dict[str, Any]:
     """
     Scope 2: 30-industry frontiers using sample and Bayes-Stein counterparts.
@@ -275,6 +276,8 @@ def run_scope3_industries_vs_stocks(
             "n_assets_industry": int(ind_common.shape[1]),
             "n_assets_stock": int(stocks_common.shape[1]),
             "rf_mean": rf_mean,
+            "stock_source": stocks_gross.attrs.get("stock_source"),
+            "stock_source_file": stocks_gross.attrs.get("stock_source_file"),
         },
         "models": models,
         "summary_tables": {"gmv_tan": summary_df},
@@ -283,6 +286,19 @@ def run_scope3_industries_vs_stocks(
             "bs_industry_shrinkage_intensity": bs_ind.shrinkage_intensity,
             "bs_stock_shrinkage_intensity": bs_stk.shrinkage_intensity,
             "note": "Scope 3 frontiers are estimated on overlapping dates with complete data.",
+            "note_data_source_and_mapping": (
+                "Stock data source is loaded dynamically from load_stock_returns_monthly(...) "
+                f"using source={stocks_gross.attrs.get('stock_source')!r}, "
+                f"file={stocks_gross.attrs.get('stock_source_file')!r}. "
+                "If the balanced clean stock file is selected, returns are converted from "
+                "monthly net returns to gross returns before estimation. The stock-to-FF30 "
+                "mapping is a project crosswalk (not an official Ken French/CRSP one-stock mapping); "
+                "some assignments (especially residual-style categories such as 'Other') "
+                "remain TODO for validation."
+            ),
+            "stock_source": stocks_gross.attrs.get("stock_source"),
+            "stock_source_file": stocks_gross.attrs.get("stock_source_file"),
+            "stock_column_labels": list(stocks_common.columns),
         },
     }
 
@@ -500,12 +516,147 @@ def run_scope6_ff_vs_proxies(
     ff5_excess: pd.DataFrame,
     proxy_returns: pd.DataFrame,
     rf_gross: pd.Series,
+    tan_return_mult: float = 1.2,
     n_points: int = 200,
 ) -> dict[str, Any]:
     """
-    Placeholder for Scope 6 workflow.
+    Scope 6: compare FF3/FF5 frontiers to practical proxy frontiers (excess space).
     """
-    raise NotImplementedError("Scope 6 workflow scaffolded but not implemented yet.")
+    if ff3_excess.empty:
+        raise ValueError("ff3_excess is empty")
+    if ff5_excess.empty:
+        raise ValueError("ff5_excess is empty")
+    if proxy_returns.empty:
+        raise ValueError("proxy_returns is empty")
+    if rf_gross.empty:
+        raise ValueError("rf_gross is empty")
+
+    required_proxy_cols = {"Mkt", "SMB", "HML", "RMW", "CMA"}
+    missing = required_proxy_cols - set(proxy_returns.columns)
+    if missing:
+        raise ValueError(f"proxy_returns missing required columns: {sorted(missing)}")
+
+    common_idx = (
+        proxy_returns.index.intersection(ff3_excess.index).intersection(ff5_excess.index).intersection(rf_gross.index)
+    ).sort_values()
+    if len(common_idx) == 0:
+        raise ValueError("No overlapping dates across proxies, FF3, FF5, and RF.")
+
+    proxy = proxy_returns.loc[common_idx].astype(float)
+    ff3 = ff3_excess.loc[common_idx].astype(float)
+    ff5 = ff5_excess.loc[common_idx].astype(float)
+    rf_net = (rf_gross.loc[common_idx] - 1.0).astype(float)
+    proxy_excess = proxy.sub(rf_net, axis=0)
+
+    mu_ff3, Sigma_ff3 = compute_moments_from_net(ff3.values)
+    mu_ff5, Sigma_ff5 = compute_moments_from_net(ff5.values)
+    mu_proxy3, Sigma_proxy3 = compute_moments_from_net(proxy_excess[["Mkt", "SMB", "HML"]].values)
+    mu_proxy5, Sigma_proxy5 = compute_moments_from_net(proxy_excess[["Mkt", "SMB", "HML", "RMW", "CMA"]].values)
+
+    models = {
+        "ff3": {"mu": mu_ff3, "Sigma": Sigma_ff3},
+        "proxy3": {"mu": mu_proxy3, "Sigma": Sigma_proxy3},
+        "ff5": {"mu": mu_ff5, "Sigma": Sigma_ff5},
+        "proxy5": {"mu": mu_proxy5, "Sigma": Sigma_proxy5},
+    }
+    stats = {k: gmv_tan_stats(v["mu"], v["Sigma"], rf=0.0) for k, v in models.items()}
+
+    # Optional constrained tangency diagnostics for factors (especially FF3)
+    w_tan_ff3_c = tangency_weights_constrained(mu_ff3, Sigma_ff3, rf=0.0, w_min=-1.0)
+    mu_t_ff3_c, vol_t_ff3_c = portfolio_stats(w_tan_ff3_c, mu_ff3, Sigma_ff3)
+    sr_t_ff3_c = mu_t_ff3_c / vol_t_ff3_c if vol_t_ff3_c > 0 else np.nan
+    stats["ff3_constrained"] = {
+        "weights": {"tan": w_tan_ff3_c},
+        "stats": {"tan": {"mean": mu_t_ff3_c, "vol": vol_t_ff3_c, "sharpe": sr_t_ff3_c}},
+    }
+
+    summary_rows = []
+    for key, universe in [
+        ("ff3", "ff3"),
+        ("proxy3", "proxy3"),
+        ("ff5", "ff5"),
+        ("proxy5", "proxy5"),
+    ]:
+        st = stats[key]["stats"]
+        summary_rows.append(
+            {
+                "series": key,
+                "universe": universe,
+                "portfolio": "GMV",
+                "mean": st["gmv"]["mean"],
+                "vol": st["gmv"]["vol"],
+                "excess_mean": st["gmv"]["excess_mean"],
+                "sharpe": st["gmv"]["excess_mean"] / st["gmv"]["vol"] if st["gmv"]["vol"] > 0 else np.nan,
+            }
+        )
+        summary_rows.append(
+            {
+                "series": key,
+                "universe": universe,
+                "portfolio": "TAN",
+                "mean": st["tan"]["mean"],
+                "vol": st["tan"]["vol"],
+                "excess_mean": st["tan"]["excess_mean"],
+                "sharpe": st["tan"]["sharpe"],
+            }
+        )
+    summary_df = pd.DataFrame(summary_rows)
+
+    max_tan_mean = max(float(stats[k]["stats"]["tan"]["mean"]) for k in ("ff3", "proxy3", "ff5", "proxy5"))
+    mu_min = 0.0
+    mu_max = max(0.001, tan_return_mult * max_tan_mean)
+
+    curves = {
+        key: build_frontier_curve(models[key]["mu"], models[key]["Sigma"], n_points=n_points, mu_min=mu_min, mu_max=mu_max)
+        for key in ("ff3", "proxy3", "ff5", "proxy5")
+    }
+    points = {
+        key: {
+            "gmv": stats[key]["stats"]["gmv"],
+            "tan": stats[key]["stats"]["tan"],
+        }
+        for key in ("ff3", "proxy3", "ff5", "proxy5")
+    }
+
+    max_slope = max(float(points[k]["tan"]["sharpe"]) for k in points.keys())
+    x_max = float(mu_max / max(max_slope, 1e-10))
+    cml = {}
+    for key in ("ff3", "proxy3", "ff5", "proxy5"):
+        cml_vol, cml_mean = build_cml(
+            sharpe_tan=float(points[key]["tan"]["sharpe"]),
+            vol_max=x_max,
+            rf=0.0,
+            n_points=150,
+        )
+        cml[key] = {"vols": cml_vol, "means": cml_mean}
+
+    return {
+        "inputs": {
+            "start": common_idx.min().strftime("%Y-%m"),
+            "end": common_idx.max().strftime("%Y-%m"),
+            "n_obs": int(len(common_idx)),
+            "space": "excess returns (rf=0)",
+        },
+        "models": models,
+        "summary_tables": {"gmv_tan": summary_df},
+        "plot_data": {
+            "curves": curves,
+            "points": points,
+            "cml": cml,
+            "range": {"mu_min": mu_min, "mu_max": mu_max, "x_max": x_max},
+        },
+        "diagnostics": {
+            "ff3_tan_unconstrained_mean": float(stats["ff3"]["stats"]["tan"]["mean"]),
+            "ff3_tan_unconstrained_vol": float(stats["ff3"]["stats"]["tan"]["vol"]),
+            "ff3_tan_unconstrained_sharpe": float(stats["ff3"]["stats"]["tan"]["sharpe"]),
+            "ff3_tan_unconstrained_weights": stats["ff3"]["weights"]["tan"],
+            "ff3_tan_constrained_wmin": -1.0,
+            "ff3_tan_constrained_mean": mu_t_ff3_c,
+            "ff3_tan_constrained_vol": vol_t_ff3_c,
+            "ff3_tan_constrained_sharpe": sr_t_ff3_c,
+            "note": "Proxies are converted to excess returns by subtracting RF.",
+        },
+    }
 
 
 def run_scope7_is_oos_tests(
