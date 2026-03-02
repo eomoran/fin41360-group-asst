@@ -1,0 +1,3 @@
+ticker,sic,market_cap_usd,median_dollar_volume_usd,first_return_month,last_return_month,notes
+KO,2086,260000000000,450000000,1990-01,2025-12,example_row_replace_with_your_candidate_universe
+XOM,2911,430000000000,1200000000,1990-01,2025-12,example_row_replace_with_your_candidate_universe

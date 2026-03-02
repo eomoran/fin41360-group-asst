@@ -61,7 +61,42 @@ Scope 3 currently uses a custom balanced stock file when available:
 
 This file is loaded automatically by `load_stock_returns_monthly(..., source="auto")`, converted from monthly net returns to gross returns, and then used in the frontier pipeline.
 
-The stock-to-FF30-industry mapping for that file is a project crosswalk (not an official Ken French / CRSP one-stock mapping). Some assignments, especially residual-style categories such as `Other`, remain a TODO for validation before final submission.
+The stock-to-FF30-industry mapping for that file is a project crosswalk (not an official Ken French / CRSP one-stock mapping). Use the Scope 3 validation workflow below to produce an auditable SIC-based mapping before final submission.
+
+After running `python -m fin41360.setup_scope3_data`, the file
+`fin41360_data/processed/scope3_selected_30_stock_monthly_gross.csv` is built
+from the SIC-selected mapping and becomes the first preference for
+`load_stock_returns_monthly(..., source="auto")`.
+
+To build a validated, auditable mapping from SIC to FF30 with deterministic
+stock selection rules, use:
+
+```bash
+python -m fin41360.setup_scope3_mapping \
+  --candidates fin41360_data/processed/scope3_stock_candidates.csv \
+  --sic-ranges fin41360_data/processed/ff30_sic_ranges.csv
+```
+
+For a fresh machine / reproducible setup (with caching and automatic download
+of candidate metadata + Siccodes30 definitions), use:
+
+```bash
+python -m fin41360.setup_scope3_data
+```
+
+By default this reuses existing processed files and raw caches to avoid
+unnecessary downloads/rate limits. Use `--refresh` only when you want to
+force a rebuild.
+The command prints stage-by-stage progress (cache hits, download steps, SEC/yfinance progress).
+Pass `--skip-selected-returns` to skip building the selected 30 return matrix.
+
+Method details are documented in:
+- `docs/scope3_ff30_mapping_method.md`
+- `docs/templates/ff30_sic_ranges.template.csv`
+- `docs/templates/scope3_stock_candidates.template.csv`
+
+For Scope 3 sensitivity (with Coal vs without Coal), use:
+- `run_scope3_sensitivity_with_and_without_coal(...)` in `fin41360/workflows.py`
 
 ## Notes for contributors
 
