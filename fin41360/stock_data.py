@@ -29,7 +29,7 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from .config import PROCESSED_DIR
+from .config import PROCESSED_DIR, PROJECT_ROOT
 
 # One representative stock per Fama–French 30 industry (Yahoo Finance tickers).
 # Chosen for large cap, liquid, and long history where possible. Alternatives
@@ -74,6 +74,8 @@ INDUSTRY_TICKERS = {
 
 LEGACY_STOCK_GROSS_FILE = "stock_30_monthly_gross.csv"
 BALANCED_STOCK_NET_FILE = "clean_30_stocks_monthly_returns_balanced_1990_2025.csv"
+SCOPE3_SELECTED_GROSS_FILE = "scope3_selected_30_stock_monthly_gross.csv"
+SCOPE3_SELECTED_MAPPING_FILE = "scope3_selected_30_stocks_ff30.csv"
 
 # Proposed/manual crosswalk for the balanced long-history stock set.
 # IMPORTANT: this is not an official Ken French / CRSP mapping for the FF30
@@ -114,6 +116,16 @@ BALANCED_STOCK_FF30_CROSSWALK = {
 }
 
 
+def _display_path(path: Path) -> str:
+    """
+    Prefer repo-relative path strings in user-facing diagnostics.
+    """
+    try:
+        return str(path.resolve().relative_to(PROJECT_ROOT.resolve()))
+    except Exception:
+        return str(path)
+
+
 def _ff30_industry_order() -> list[str]:
     return list(INDUSTRY_TICKERS.keys())
 
@@ -125,7 +137,7 @@ def _load_legacy_cached_stock_gross(start: str, end: str) -> pd.DataFrame:
     df.index = df.index.to_period("M").to_timestamp("M")
     df = df.reindex(columns=_ff30_industry_order())
     df.attrs["stock_source"] = "legacy_cached_gross"
-    df.attrs["stock_source_file"] = str(cache_path)
+    df.attrs["stock_source_file"] = _display_path(cache_path)
     return df
 
 
@@ -138,8 +150,106 @@ def _load_balanced_stock_net_as_gross(start: str, end: str) -> pd.DataFrame:
     df = 1.0 + df
     df = df.sort_index().loc[start:end]
     df.attrs["stock_source"] = "balanced_clean_net_to_gross"
-    df.attrs["stock_source_file"] = str(path)
+    df.attrs["stock_source_file"] = _display_path(path)
     return df
+
+
+def _load_scope3_selected_cached_gross(start: str, end: str) -> pd.DataFrame:
+    path = PROCESSED_DIR / SCOPE3_SELECTED_GROSS_FILE
+    df = pd.read_csv(path, index_col=0, parse_dates=True)
+    df = df.sort_index().loc[start:end]
+    df.index = df.index.to_period("M").to_timestamp("M")
+    df = df.reindex(columns=_ff30_industry_order())
+    df.attrs["stock_source"] = "scope3_selected_cached_gross"
+    df.attrs["stock_source_file"] = _display_path(path)
+    return df
+
+
+def build_scope3_selected_stock_returns(
+    start: str = "1980-01",
+    end: str = "2025-12",
+    mapping_file: str | Path | None = None,
+    out_file: str | Path | None = None,
+) -> Path:
+    """
+    Build gross monthly returns for the SIC-selected Scope 3 30-stock set.
+
+    Uses `scope3_selected_30_stocks_ff30.csv` (or provided mapping file) and
+    downloads monthly prices from yfinance. Output columns are FF30 industry
+    labels in canonical order so industry-vs-stock comparisons are aligned.
+    """
+    mpath = Path(mapping_file) if mapping_file is not None else (PROCESSED_DIR / SCOPE3_SELECTED_MAPPING_FILE)
+    if not mpath.exists():
+        raise FileNotFoundError(f"Selected mapping file not found: {mpath}")
+
+    m = pd.read_csv(mpath)
+    req = {"ff30_industry", "ticker", "selection_status"}
+    if not req.issubset(m.columns):
+        raise ValueError(f"Mapping file must contain columns: {sorted(req)}")
+
+    m = m[m["selection_status"].astype(str).str.startswith("selected")].copy()
+    m = m[m["ticker"].notna()].copy()
+    m["ticker"] = m["ticker"].astype(str).str.upper().str.strip()
+    m["ff30_industry"] = m["ff30_industry"].astype(str).str.strip()
+
+    if len(m) < 1:
+        raise ValueError("No selected rows found in mapping file.")
+
+    out_path = Path(out_file) if out_file is not None else (PROCESSED_DIR / SCOPE3_SELECTED_GROSS_FILE)
+
+    try:
+        import yfinance as yf
+    except ImportError:
+        raise ImportError("yfinance is required for stock data. Install with: pip install yfinance")
+
+    start_d = pd.Timestamp(start) - pd.offsets.MonthBegin(1)
+    end_d = pd.Timestamp(end)
+
+    out = {}
+    nonempty_series = 0
+    for _, row in m.iterrows():
+        ind = row["ff30_industry"]
+        ticker = row["ticker"]
+        try:
+            hist = yf.download(
+                ticker,
+                start=start_d,
+                end=end_d,
+                progress=False,
+                auto_adjust=True,
+            )
+            if hist.empty:
+                out[ind] = pd.Series(dtype=float)
+                continue
+
+            if isinstance(hist.columns, pd.MultiIndex):
+                close = hist["Close"].iloc[:, 0]
+            else:
+                close = hist["Close"] if "Close" in hist.columns else hist["Adj Close"]
+            close = close.sort_index()
+            monthly = close.resample("ME").last().dropna()
+            ret = monthly.pct_change().dropna()
+            out[ind] = 1.0 + ret
+            if not out[ind].empty:
+                nonempty_series += 1
+        except Exception as e:
+            out[ind] = pd.Series(dtype=float)
+            print(f"  Warning: failed to load {ticker} ({ind}): {e}")
+
+    df = pd.DataFrame(out)
+    if nonempty_series == 0 or not isinstance(df.index, pd.DatetimeIndex):
+        raise RuntimeError(
+            "No stock price data could be downloaded for the selected Scope 3 mapping. "
+            "Check internet access (Yahoo Finance / yfinance) or provide a prebuilt "
+            f"'{SCOPE3_SELECTED_GROSS_FILE}' file in {PROCESSED_DIR}."
+        )
+    df.index = df.index.to_period("M").to_timestamp("M")
+    df = df.sort_index().loc[start:end]
+    df = df.reindex(columns=_ff30_industry_order())
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_path)
+    return out_path
 
 
 def stock_mapping_tables() -> dict[str, pd.DataFrame]:
@@ -214,6 +324,7 @@ def load_stock_returns_monthly(
     end: str = "2025-12",
     use_cache: bool = True,
     source: str = "auto",
+    scope3_refresh: bool = False,
 ) -> pd.DataFrame:
     """
     Load monthly gross returns for the 30 stocks (one per industry).
@@ -226,12 +337,18 @@ def load_stock_returns_monthly(
     use_cache : bool, default True
         If True, read from or write to a CSV in PROCESSED_DIR to avoid
         repeated API calls.
-    source : {'auto', 'balanced', 'legacy', 'yfinance'}
+    source : {'auto', 'scope3_selected', 'balanced', 'legacy', 'yfinance'}
         - 'auto' (default): prefer balanced long-history processed file if present,
           else legacy cached gross file if present, else fetch via yfinance.
+          If a scope3-selected cached gross file exists, it is preferred first.
+        - 'scope3_selected': load cached SIC-selected Scope 3 gross returns.
         - 'balanced': load balanced processed CSV (net returns) and convert to gross.
         - 'legacy': load legacy cached gross CSV (industry-labeled columns).
         - 'yfinance': always fetch and optionally refresh legacy cache.
+    scope3_refresh : bool, default False
+        If True, rebuild `scope3_selected_30_stock_monthly_gross.csv` from the
+        selected mapping before loading (for `source='auto'` or
+        `source='scope3_selected'`).
 
     Returns
     -------
@@ -243,10 +360,21 @@ def load_stock_returns_monthly(
     """
     cache_path = PROCESSED_DIR / LEGACY_STOCK_GROSS_FILE
     balanced_path = PROCESSED_DIR / BALANCED_STOCK_NET_FILE
+    selected_path = PROCESSED_DIR / SCOPE3_SELECTED_GROSS_FILE
 
     source = source.lower()
-    if source not in {"auto", "balanced", "legacy", "yfinance"}:
-        raise ValueError("source must be one of {'auto', 'balanced', 'legacy', 'yfinance'}")
+    if source not in {"auto", "scope3_selected", "balanced", "legacy", "yfinance"}:
+        raise ValueError("source must be one of {'auto', 'scope3_selected', 'balanced', 'legacy', 'yfinance'}")
+
+    if source == "scope3_selected":
+        if scope3_refresh or not selected_path.exists():
+            build_scope3_selected_stock_returns(
+                start=start,
+                end=end,
+                mapping_file=PROCESSED_DIR / SCOPE3_SELECTED_MAPPING_FILE,
+                out_file=selected_path,
+            )
+        return _load_scope3_selected_cached_gross(start=start, end=end)
 
     if source == "balanced":
         if not balanced_path.exists():
@@ -259,10 +387,46 @@ def load_stock_returns_monthly(
         return _load_legacy_cached_stock_gross(start=start, end=end)
 
     if source == "auto":
+        if scope3_refresh:
+            try:
+                build_scope3_selected_stock_returns(
+                    start=start,
+                    end=end,
+                    mapping_file=PROCESSED_DIR / SCOPE3_SELECTED_MAPPING_FILE,
+                    out_file=selected_path,
+                )
+            except Exception:
+                # Keep auto mode resilient: if rebuild fails, continue to cached fallbacks.
+                pass
+
+        if use_cache and not selected_path.exists():
+            try:
+                build_scope3_selected_stock_returns(
+                    start=start,
+                    end=end,
+                    mapping_file=PROCESSED_DIR / SCOPE3_SELECTED_MAPPING_FILE,
+                    out_file=selected_path,
+                )
+            except Exception:
+                # Missing selected cache should not hard-fail in auto mode.
+                pass
+
+        if use_cache and selected_path.exists():
+            return _load_scope3_selected_cached_gross(start=start, end=end)
         if use_cache and balanced_path.exists():
-            return _load_balanced_stock_net_as_gross(start=start, end=end)
+            df = _load_balanced_stock_net_as_gross(start=start, end=end)
+            if not selected_path.exists():
+                df.attrs["stock_source_fallback_reason"] = (
+                    f"{selected_path.name} not found; falling back to {balanced_path.name}"
+                )
+            return df
         if use_cache and cache_path.exists():
-            return _load_legacy_cached_stock_gross(start=start, end=end)
+            df = _load_legacy_cached_stock_gross(start=start, end=end)
+            if not selected_path.exists():
+                df.attrs["stock_source_fallback_reason"] = (
+                    f"{selected_path.name} not found; falling back to {cache_path.name}"
+                )
+            return df
 
     try:
         import yfinance as yf
@@ -315,7 +479,7 @@ def load_stock_returns_monthly(
         PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
         df.to_csv(cache_path)
     df.attrs["stock_source"] = "yfinance_fetched_gross"
-    df.attrs["stock_source_file"] = str(cache_path)
+    df.attrs["stock_source_file"] = _display_path(cache_path)
 
     return df
 

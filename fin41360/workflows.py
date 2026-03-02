@@ -7,6 +7,7 @@ data loading and plotting delegated to reusable module code.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -299,6 +300,174 @@ def run_scope3_industries_vs_stocks(
             "stock_source": stocks_gross.attrs.get("stock_source"),
             "stock_source_file": stocks_gross.attrs.get("stock_source_file"),
             "stock_column_labels": list(stocks_common.columns),
+        },
+    }
+
+
+def _infer_coal_stock_column(
+    stocks_gross: pd.DataFrame,
+    mapping_csv: str | Path | None = None,
+) -> str | None:
+    """
+    Infer which stock column corresponds to FF30 Coal.
+
+    Priority:
+    1) direct "Coal" column (legacy industry-labeled stock file),
+    2) explicit mapping CSV if provided / available,
+    3) fallback to known project crosswalks in stock_data.py.
+    """
+    cols = set(stocks_gross.columns.astype(str))
+    if "Coal" in cols:
+        return "Coal"
+
+    candidate_paths: list[Path] = []
+    if mapping_csv is not None:
+        candidate_paths.append(Path(mapping_csv))
+    candidate_paths.append(Path("fin41360_data/processed/scope3_selected_30_stocks_ff30.csv"))
+
+    for p in candidate_paths:
+        try:
+            if p.exists():
+                m = pd.read_csv(p)
+                if {"ff30_industry", "ticker"}.issubset(m.columns):
+                    row = m[m["ff30_industry"] == "Coal"]
+                    if not row.empty:
+                        ticker = str(row.iloc[0]["ticker"]).upper().strip()
+                        if ticker in cols:
+                            return ticker
+        except Exception:
+            continue
+
+    # Fallback: import known crosswalk constants lazily to avoid hard coupling.
+    try:
+        from .stock_data import BALANCED_STOCK_FF30_CROSSWALK
+
+        coal_tickers = [t for t, ind in BALANCED_STOCK_FF30_CROSSWALK.items() if ind == "Coal"]
+        for t in coal_tickers:
+            if t in cols:
+                return t
+    except Exception:
+        pass
+
+    return None
+
+
+def run_scope3_sensitivity_with_and_without_coal(
+    ind_gross: pd.DataFrame,
+    stocks_gross: pd.DataFrame,
+    rf_gross: pd.Series,
+    cov_shrink: float = 0.1,
+    tan_return_mult: float = 1.2,
+    n_points: int = 200,
+    coal_mapping_csv: str | Path | None = None,
+) -> dict[str, Any]:
+    """
+    Scope 3 sensitivity package:
+    - Base comparison with Coal included (30 vs 30 when available),
+    - Alternative comparison dropping Coal from both universes (29 vs 29),
+    - Industry-only stability comparison:
+      full-sample vs short common window implied by the with-Coal setup.
+
+    Returns
+    -------
+    dict with keys:
+    - with_coal_30: output of run_scope3_industries_vs_stocks
+    - drop_coal_29: output of run_scope3_industries_vs_stocks
+    - industry_stability: {full_sample, short_common_with_coal, summary_window_table}
+    """
+    if "Coal" not in ind_gross.columns:
+        raise ValueError("Industry dataset does not contain a 'Coal' column.")
+
+    # 1) Base case (includes Coal)
+    with_coal = run_scope3_industries_vs_stocks(
+        ind_gross=ind_gross,
+        stocks_gross=stocks_gross,
+        rf_gross=rf_gross,
+        cov_shrink=cov_shrink,
+        tan_return_mult=tan_return_mult,
+        n_points=n_points,
+    )
+
+    short_start = with_coal["inputs"]["common_start"]
+    short_end = with_coal["inputs"]["common_end"]
+
+    # 2) Alternative: drop Coal from both universes
+    coal_stock_col = _infer_coal_stock_column(stocks_gross, mapping_csv=coal_mapping_csv)
+    if coal_stock_col is None:
+        raise ValueError(
+            "Could not infer Coal stock column in stocks_gross. "
+            "Pass coal_mapping_csv or ensure mapping file exists."
+        )
+
+    ind_no_coal = ind_gross.drop(columns=["Coal"]).copy()
+    stocks_no_coal = stocks_gross.drop(columns=[coal_stock_col]).copy()
+    stocks_no_coal.attrs.update(stocks_gross.attrs)
+    stocks_no_coal.attrs["coal_column_dropped"] = coal_stock_col
+
+    drop_coal = run_scope3_industries_vs_stocks(
+        ind_gross=ind_no_coal,
+        stocks_gross=stocks_no_coal,
+        rf_gross=rf_gross,
+        cov_shrink=cov_shrink,
+        tan_return_mult=tan_return_mult,
+        n_points=n_points,
+    )
+
+    # 3) Industry-only stability diagnostic: full vs short window
+    ind_full_scope2 = run_scope2_industries_sample_vs_bs(
+        ind_gross=ind_gross,
+        rf_gross=rf_gross,
+        cov_shrink=cov_shrink,
+        tan_return_mult=tan_return_mult,
+        n_points=n_points,
+    )
+    ind_short_scope2 = run_scope2_industries_sample_vs_bs(
+        ind_gross=ind_gross.loc[short_start:short_end],
+        rf_gross=rf_gross.loc[short_start:short_end],
+        cov_shrink=cov_shrink,
+        tan_return_mult=tan_return_mult,
+        n_points=n_points,
+    )
+
+    window_summary = pd.DataFrame(
+        [
+            {
+                "scenario": "with_coal_30",
+                "common_start": with_coal["inputs"]["common_start"],
+                "common_end": with_coal["inputs"]["common_end"],
+                "n_obs": with_coal["inputs"]["n_obs"],
+                "n_assets_industry": with_coal["inputs"]["n_assets_industry"],
+                "n_assets_stock": with_coal["inputs"]["n_assets_stock"],
+                "bs_industry_shrinkage_intensity": with_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
+                "bs_stock_shrinkage_intensity": with_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+            },
+            {
+                "scenario": "drop_coal_29",
+                "common_start": drop_coal["inputs"]["common_start"],
+                "common_end": drop_coal["inputs"]["common_end"],
+                "n_obs": drop_coal["inputs"]["n_obs"],
+                "n_assets_industry": drop_coal["inputs"]["n_assets_industry"],
+                "n_assets_stock": drop_coal["inputs"]["n_assets_stock"],
+                "bs_industry_shrinkage_intensity": drop_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
+                "bs_stock_shrinkage_intensity": drop_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+            },
+        ]
+    )
+
+    return {
+        "with_coal_30": with_coal,
+        "drop_coal_29": drop_coal,
+        "industry_stability": {
+            "full_sample": ind_full_scope2,
+            "short_common_with_coal": ind_short_scope2,
+            "summary_window_table": window_summary,
+        },
+        "diagnostics": {
+            "coal_stock_column_dropped": coal_stock_col,
+            "rationale": (
+                "with_coal_30 preserves full FF30 breadth but can force a shorter common window; "
+                "drop_coal_29 relaxes breadth by one industry to recover a longer common sample."
+            ),
         },
     }
 

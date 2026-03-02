@@ -1,0 +1,3 @@
+ff30_industry,sic_start,sic_end,source
+Food,200,299,replace_with_official_ff30_siccodes30_rows
+Beer,2080,2085,replace_with_official_ff30_siccodes30_rows

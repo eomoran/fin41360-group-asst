@@ -241,6 +241,34 @@ def process_all_raw_zips() -> Dict[str, Dict[str, pd.DataFrame]]:
     return all_results
 
 
+def ensure_core_french_processed_data() -> None:
+    """
+    Ensure core Fama-French processed CSVs exist under `PROCESSED_DIR`.
+
+    If any required dataset is missing, this bootstraps by downloading core ZIPs
+    and processing all raw ZIPs into processed CSVs.
+    """
+    patterns = [
+        "*30_Industry_Portfolios*Average_Value_Weighted*Monthly*.csv",
+        "*F-F_Research_Data_Factors*Monthly*.csv",
+        "*5_Factors_2x3*Monthly*.csv",
+    ]
+    missing = [p for p in patterns if not list(PROCESSED_DIR.glob(p))]
+    if not missing:
+        return
+
+    print(
+        "[French] Missing processed core files; bootstrapping download + processing now.",
+        flush=True,
+    )
+    from .download_french import download_all_core_french_zips
+
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    download_all_core_french_zips()
+    process_all_raw_zips()
+
+
 def load_industry_30_monthly(start: str = "1980-01", end: str = "2025-12") -> pd.DataFrame:
     """
     Load 30-industry value-weighted monthly returns from processed CSVs.
@@ -257,9 +285,12 @@ def load_industry_30_monthly(start: str = "1980-01", end: str = "2025-12") -> pd
     pattern = "*30_Industry_Portfolios*Average_Value_Weighted*Monthly*.csv"
     matches = list(PROCESSED_DIR.glob(pattern))
     if not matches:
+        ensure_core_french_processed_data()
+        matches = list(PROCESSED_DIR.glob(pattern))
+    if not matches:
         raise FileNotFoundError(
             f"No processed 30-industry monthly value-weighted file found in {PROCESSED_DIR} "
-            f"matching pattern {pattern}. Have you run the download and processing steps?"
+            f"matching pattern {pattern} after auto-setup."
         )
 
     # If multiple matches exist, take the first; users can refine the pattern later if needed.
@@ -286,9 +317,12 @@ def load_ff3_monthly(start: str = "1980-01", end: str = "2025-12") -> Tuple[pd.D
     pattern = "*F-F_Research_Data_Factors*Monthly*.csv"
     matches = list(PROCESSED_DIR.glob(pattern))
     if not matches:
+        ensure_core_french_processed_data()
+        matches = list(PROCESSED_DIR.glob(pattern))
+    if not matches:
         raise FileNotFoundError(
             f"No processed FF3 monthly factors file found in {PROCESSED_DIR} "
-            f"matching pattern {pattern}. Have you run the download and processing steps?"
+            f"matching pattern {pattern} after auto-setup."
         )
 
     csv_path = matches[0]
@@ -315,9 +349,12 @@ def load_ff5_monthly(start: str = "1980-01", end: str = "2025-12") -> Tuple[pd.D
     pattern = "*5_Factors_2x3*Monthly*.csv"
     matches = list(PROCESSED_DIR.glob(pattern))
     if not matches:
+        ensure_core_french_processed_data()
+        matches = list(PROCESSED_DIR.glob(pattern))
+    if not matches:
         raise FileNotFoundError(
             f"No processed FF5 monthly factors file found in {PROCESSED_DIR} "
-            f"matching pattern {pattern}. Have you run the download and processing steps?"
+            f"matching pattern {pattern} after auto-setup."
         )
 
     csv_path = matches[0]

@@ -272,12 +272,20 @@ def plot_scope3_overlay(
     ax.set_xlabel("Volatility (monthly std dev)")
     ax.set_ylabel("Expected return (monthly, net)")
     if meta:
-        ax.set_title(
-            "Question 3: 30 Industries vs 30 Stocks "
-            f"({meta.get('common_start', '')} to {meta.get('common_end', '')})"
-        )
+        n_ind = meta.get("n_assets_industry")
+        n_stk = meta.get("n_assets_stock")
+        if n_ind is not None and n_stk is not None:
+            ax.set_title(
+                f"Question 3: {n_ind} Industries vs {n_stk} Stocks "
+                f"({meta.get('common_start', '')} to {meta.get('common_end', '')})"
+            )
+        else:
+            ax.set_title(
+                "Question 3: Industries vs Stocks "
+                f"({meta.get('common_start', '')} to {meta.get('common_end', '')})"
+            )
     else:
-        ax.set_title("Question 3: 30 Industries vs 30 Stocks")
+        ax.set_title("Question 3: Industries vs Stocks")
 
     leg1 = ax.legend(handles=line_handles, loc="upper left", fontsize=8, title="Frontier")
     ax.add_artist(leg1)
