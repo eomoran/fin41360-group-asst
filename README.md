@@ -39,7 +39,12 @@ source ./env.workspace.sh
 
 ## Data setup
 
-Download and process the core Fama-French datasets (industries, FF3, FF5):
+Fama-French data setup is now automatic on first notebook run:
+- if required processed files are missing, loaders auto-download and process
+  core datasets (30 industries, FF3, FF5),
+- if files already exist, cached processed files are reused.
+
+Manual pre-build is still available (optional):
 
 ```bash
 python -m fin41360.setup_french_data
@@ -52,6 +57,8 @@ Open and run:
 - `fin41360_report.ipynb`
 
 The notebook is designed to call descriptively named workflow functions (in `fin41360/workflows.py`) and plotting helpers (in `fin41360/plot_frontiers.py`), keeping notebook logic thin.
+On a fresh machine, the first run may take longer because missing Fama-French
+data is bootstrapped automatically.
 
 ## Scope 3 stock data note (important)
 
