@@ -438,6 +438,8 @@ def run_scope3_sensitivity_with_and_without_coal(
                 "n_obs": with_coal["inputs"]["n_obs"],
                 "n_assets_industry": with_coal["inputs"]["n_assets_industry"],
                 "n_assets_stock": with_coal["inputs"]["n_assets_stock"],
+                "bs_industry_shrinkage_intensity": with_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
+                "bs_stock_shrinkage_intensity": with_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
             },
             {
                 "scenario": "drop_coal_29",
@@ -446,6 +448,8 @@ def run_scope3_sensitivity_with_and_without_coal(
                 "n_obs": drop_coal["inputs"]["n_obs"],
                 "n_assets_industry": drop_coal["inputs"]["n_assets_industry"],
                 "n_assets_stock": drop_coal["inputs"]["n_assets_stock"],
+                "bs_industry_shrinkage_intensity": drop_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
+                "bs_stock_shrinkage_intensity": drop_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
             },
         ]
     )

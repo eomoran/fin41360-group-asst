@@ -68,6 +68,10 @@ After running `python -m fin41360.setup_scope3_data`, the file
 from the SIC-selected mapping and becomes the first preference for
 `load_stock_returns_monthly(..., source="auto")`.
 
+`load_stock_returns_monthly(..., source="auto")` now also attempts to build
+that file automatically when missing (then reuses the local cached CSV on
+subsequent runs). Use `scope3_refresh=True` to force a rebuild/download.
+
 To build a validated, auditable mapping from SIC to FF30 with deterministic
 stock selection rules, use:
 
@@ -97,6 +101,8 @@ Method details are documented in:
 
 For Scope 3 sensitivity (with Coal vs without Coal), use:
 - `run_scope3_sensitivity_with_and_without_coal(...)` in `fin41360/workflows.py`
+- `fin41360_report.ipynb` now includes both `with_coal_30` and `drop_coal_29`
+  views, plus fixed-axis comparison plots (drop-coal limits and Scope 2 limits).
 
 ## Notes for contributors
 

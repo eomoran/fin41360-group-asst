@@ -78,7 +78,8 @@ python -m fin41360.setup_scope3_data
 To support report sensitivity analysis when Coal has short stock history:
 
 1. Base case: keep Coal in both universes (`with_coal_30`).
-2. Alternative: drop Coal from both universes (`drop_coal_29`).
+2. Alternative: drop Coal from both universes (`drop_coal_29`) which, under
+   current selected mapping, means dropping industry `Coal` and stock `BTU`.
 3. Industry stability check: compare 30-industry frontier on:
   - full available sample
   - short common window implied by the with-Coal case.
