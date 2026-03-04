@@ -1,0 +1,273 @@
+\documentclass[11pt,a4paper]{article}
+
+% -------------------------------
+% Packages
+% -------------------------------
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{setspace}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+
+% -------------------------------
+% Global formatting
+% -------------------------------
+\setstretch{1.12}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{FIN41360 Group Assignment 1}
+\rhead{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+% -------------------------------
+% Optional helper commands
+% -------------------------------
+\newcommand{\finding}[1]{\textbf{Finding:} #1}
+\newcommand{\implication}[1]{\textbf{Implication:} #1}
+\newcommand{\methodnote}[1]{\textit{Method note:} #1}
+
+% -------------------------------
+% Title block
+% -------------------------------
+\title{
+FIN41360 Portfolio and Risk Management\\
+\large Group Assignment 1: Portfolio Choice and Performance Evaluation
+}
+\author{
+Team XX\\
+Student A (ID) \and Student B (ID) \and Student C (ID)
+}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+% BRIEF CONSTRAINTS (from assignment sheet):
+% - Max report length: 3000 words (including tables/figures/body text).
+% - Bibliography excluded from word count.
+% - Submission deadline: Thursday, 5 March 2026, 5:00pm.
+% - Submit soft copy (Brightspace) + hard copy + completed submission form.
+
+% INDUSTRY-STYLE SWITCH:
+% Replace this page with a one-page "Investment Brief" front page:
+% - Big headline finding
+% - 3-5 key takeaways
+% - one "what to do now" recommendation box
+
+\begin{abstract}
+This report evaluates mean-variance efficient frontier construction and out-of-sample performance across 30 industry portfolios, selected individual stocks, and Fama-French factor portfolios over monthly data. We compare sample-estimate frontiers with Bayes-Stein shrinkage variants, incorporate risk-free assets, test practical factor proxies, and evaluate in-sample versus out-of-sample Sharpe stability using Jobson-Korkie and Ledoit-Wolf inference. We then discuss extensions under additional portfolio constraints and methods, and conclude with a framework for assessing mutual fund performance against market/proxy/tangency benchmarks.
+\end{abstract}
+
+% INDUSTRY-STYLE SWITCH:
+% Rename "Abstract" to "Executive Summary" and convert to bullets:
+% 1) What we did
+% 2) What we found
+% 3) Why it matters
+% 4) Decision implications
+
+\section{Introduction}
+Briefly state (i) assignment objective, (ii) economic motivation, and (iii) report roadmap. Keep this section short and focused.
+
+Suggested paragraph prompts:
+\begin{itemize}[leftmargin=1.2em]
+  \item Why estimation error matters in portfolio choice.
+  \item Why Bayes-Stein and covariance shrinkage are considered.
+  \item Why out-of-sample stability is central for portfolio management.
+\end{itemize}
+
+% INDUSTRY-STYLE SWITCH:
+% Keep one short "Context" paragraph and move most narrative into exhibits/callouts.
+
+\section{Data and Preprocessing}
+\subsection{Data Sources}
+Describe datasets used and exact date coverage:
+\begin{itemize}[leftmargin=1.2em]
+  \item Ken French 30 Industry Portfolios (monthly value-weighted returns).
+  \item Fama-French 3 and 5 factor returns.
+  \item Risk-free rate from Fama-French factors.
+  \item 30-stock matched universe and proxy ETF/futures series (if used).
+\end{itemize}
+
+\subsection{Sample Alignment and Return Definitions}
+State how overlapping windows are formed and what return space is used:
+\begin{itemize}[leftmargin=1.2em]
+  \item Gross vs net returns.
+  \item Excess return conversion for factor comparisons.
+  \item Common date intersection policy for fair frontier comparison.
+\end{itemize}
+
+\subsection{Methodological Setup}
+Summarize key model ingredients:
+\begin{itemize}[leftmargin=1.2em]
+  \item Sample mean/covariance frontiers.
+  \item Bayes-Stein mean shrinkage and covariance shrinkage.
+  \item GMV and tangency portfolio formulas.
+  \item Efficient frontier and CML construction.
+\end{itemize}
+
+% INDUSTRY-STYLE SWITCH:
+% Move technical formulas to appendix; keep only practical assumptions in body.
+
+\section{Empirical Results}
+% Word-control template for each subsection:
+% (A) setup and period (2-3 lines)
+% (B) main chart/table reference
+% (C) 2-4 findings
+% (D) short economic interpretation
+
+\subsection{How Estimation and Asset Definition Change the Frontier (Tasks 2-3)}
+This section combines baseline estimator effects (Task 2) with the industry-vs-stock comparison on matched windows (Task 3), so the discussion reads as one coherent comparison chain.
+
+\paragraph{Reporting notation for legends and tables.}
+Use:
+\begin{itemize}[leftmargin=1.2em]
+  \item Sample: $\delta_{\mu}=0$, $\lambda_{\Sigma}=0$
+  \item Bayes-Stein mean only: $\delta_{\mu}=\hat{\delta}_{\mu}$, $\lambda_{\Sigma}=0$
+  \item Bayes-Stein mean+covariance: $\delta_{\mu}=\hat{\delta}_{\mu}$, $\lambda_{\Sigma}=0.10$ (baseline) or $\lambda_{\Sigma}=\lambda_{LW}$ (robustness)
+\end{itemize}
+State in a note that $\delta_{\mu}$ is mean shrinkage intensity and $\lambda_{\Sigma}$ is covariance shrinkage intensity.
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.82\textwidth]{figures/task2_frontiers_industries.png}
+  \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering Placeholder: Task 2 (industries) frontiers with three estimators}}
+  \caption{Industry frontiers under sample and Bayes-Stein estimators.}
+  \label{fig:task2_frontiers}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.82\textwidth]{figures/task3_frontiers_industries_vs_stocks.png}
+  \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering Placeholder: Task 3 industries vs stocks on common sample}}
+  \caption{Industry vs stock frontier comparison on matched windows, with and without Coal sensitivity view.}
+  \label{fig:task3_frontiers}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \begin{threeparttable}
+  \caption{GMV Summary by Estimator and Asset Set (Tasks 2-3)}
+  \label{tab:gmv_summary_t23}
+  \begin{tabular}{llcccc}
+    \toprule
+    Asset Set & Estimator & Mean & Volatility & Sharpe & $\Delta$Sharpe vs Sample \\
+    \midrule
+    Industries & Sample & -- & -- & -- & 0.000 \\
+    Industries & BS($\mu$) & -- & -- & -- & -- \\
+    Industries & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
+    Stocks (matched) & Sample & -- & -- & -- & 0.000 \\
+    Stocks (matched) & BS($\mu$) & -- & -- & -- & -- \\
+    Stocks (matched) & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
+    \bottomrule
+  \end{tabular}
+  \begin{tablenotes}
+    \footnotesize
+    \item Notes: Keep this table focused on GMV only to avoid crowding. Optional column heatmap should be applied to $\Delta$ columns only.
+  \end{tablenotes}
+  \end{threeparttable}
+\end{table}
+
+\begin{table}[H]
+  \centering
+  \begin{threeparttable}
+  \caption{Tangency Summary by Estimator and Asset Set (Tasks 2-3)}
+  \label{tab:tan_summary_t23}
+  \begin{tabular}{llcccc}
+    \toprule
+    Asset Set & Estimator & Mean & Volatility & Sharpe & $\Delta$Sharpe vs Sample \\
+    \midrule
+    Industries & Sample & -- & -- & -- & 0.000 \\
+    Industries & BS($\mu$) & -- & -- & -- & -- \\
+    Industries & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
+    Stocks (matched) & Sample & -- & -- & -- & 0.000 \\
+    Stocks (matched) & BS($\mu$) & -- & -- & -- & -- \\
+    Stocks (matched) & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
+    \bottomrule
+  \end{tabular}
+  \begin{tablenotes}
+    \footnotesize
+    \item Notes: Report common window (`start`, `end`, `n\_obs`) for `with\_coal\_30` and `drop\_coal\_29` directly below this table.
+  \end{tablenotes}
+  \end{threeparttable}
+\end{table}
+
+\subsection{From Risk-Free Inclusion to Factor and Proxy Comparisons (Tasks 4-6)}
+Start with the effect of adding the risk-free asset to industries (Task 4), then transition to FF3/FF5 frontier comparisons in excess-return space (Task 5), and finally FF-vs-proxy implementation differences (Task 6).
+
+\begin{itemize}[leftmargin=1.2em]
+  \item Task 4 anchor point: adding $r_f$ replaces the efficient risky branch with a CML through the tangency portfolio.
+  \item Task 5 anchor point: in the current results, FF5 tangency Sharpe is close to industry tangency Sharpe, while FF3 is lower.
+  \item Task 6 anchor point: proxy differences should be interpreted as investability/exposure translation gaps, not only as optimization noise.
+\end{itemize}
+
+\subsection{In-Sample vs Out-of-Sample Stability (Task 7)}
+Keep Scope 7 as a standalone section since it answers a different question: whether in-sample frontier winners remain competitive out-of-sample.
+\begin{itemize}[leftmargin=1.2em]
+  \item IS vs OOS Sharpe table for selected industry and FF5 portfolios.
+  \item Jobson-Korkie equality tests (classic benchmark).
+  \item Ledoit-Wolf equality tests (robust benchmark).
+  \item One short conclusion sentence per portfolio: ``survives'' or ``does not survive'' OOS.
+\end{itemize}
+
+\subsection{Extension and Fund Evaluation (Tasks 8-9)}
+Task 8 should include one clearly motivated extension (constraint or alternative method) and Task 9 should benchmark three mutual funds against market/proxy/tangency alternatives.
+\begin{itemize}[leftmargin=1.2em]
+  \item For Task 8, keep one extension only unless additional variants clearly add insight.
+  \item For Task 9, report all three funds in one compact comparison table plus one synthesis paragraph.
+\end{itemize}
+
+\section{Discussion}
+Synthesize cross-task findings:
+\begin{itemize}[leftmargin=1.2em]
+  \item Estimation sensitivity and frontier dispersion.
+  \item Tradeoff between theoretical optimality and implementability.
+  \item Robustness of Sharpe superiority out-of-sample.
+  \item Limits and caveats (data, mapping assumptions, proxy purity).
+\end{itemize}
+
+\section{Conclusion}
+End with concise answers to:
+\begin{enumerate}[leftmargin=1.2em]
+  \item Which constructions looked strongest in-sample?
+  \item Which were robust out-of-sample?
+  \item What would a portfolio manager realistically implement and why?
+\end{enumerate}
+
+% INDUSTRY-STYLE SWITCH:
+% Replace with:
+% - "Bottom line"
+% - "Actionable allocation recommendation"
+% - "Main risk to recommendation"
+
+\newpage
+\section*{References}
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+\section{Appendix A: Additional Method Details}
+Put formulas, estimator details, and implementation specifics here.
+
+\section{Appendix B: Supplementary Tables/Figures}
+Park robustness checks and extra outputs here.
+
+\section{Appendix C: Contribution Statement}
+Mirror required submission-form contribution details.
+
+\end{document}
