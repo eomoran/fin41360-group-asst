@@ -28,6 +28,7 @@
 \setstretch{1.12}
 \setlength{\parskip}{0.4em}
 \setlength{\parindent}{0pt}
+\setlength{\headheight}{14pt}
 \pagestyle{fancy}
 \fancyhf{}
 \lhead{FIN41360 Group Assignment 1}
@@ -40,7 +41,13 @@
 \newcommand{\finding}[1]{\textbf{Finding:} #1}
 \newcommand{\implication}[1]{\textbf{Implication:} #1}
 \newcommand{\methodnote}[1]{\textit{Method note:} #1}
-
+\newcommand{\reportfigorplaceholder}[2]{%
+  \IfFileExists{figures/#1}{%
+    \includegraphics[width=0.82\textwidth]{figures/#1}%
+  }{%
+    \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering #2}}%
+  }%
+}
 % -------------------------------
 % Title block
 % -------------------------------
@@ -49,8 +56,12 @@ FIN41360 Portfolio and Risk Management\\
 \large Group Assignment 1: Portfolio Choice and Performance Evaluation
 }
 \author{
-Team XX\\
-Student A (ID) \and Student B (ID) \and Student C (ID)
+\textbf{Group 11}\\[0.4em]
+\footnotesize Aadil Haris (X) \quad
+Jasveen Kaur (25219948) \quad
+Tobias Mella (24273004)\\[0.2em]
+\footnotesize Eoin Moran (25252950) \quad
+Kevin O'Regan (X)
 }
 \date{\today}
 
@@ -64,65 +75,51 @@ Student A (ID) \and Student B (ID) \and Student C (ID)
 % - Submission deadline: Thursday, 5 March 2026, 5:00pm.
 % - Submit soft copy (Brightspace) + hard copy + completed submission form.
 
-% INDUSTRY-STYLE SWITCH:
-% Replace this page with a one-page "Investment Brief" front page:
-% - Big headline finding
-% - 3-5 key takeaways
-% - one "what to do now" recommendation box
+% NOTE (addressed): report body is drafted; optional one-page investment-brief cover can be added later.
 
 \begin{abstract}
 This report evaluates mean-variance efficient frontier construction and out-of-sample performance across 30 industry portfolios, selected individual stocks, and Fama-French factor portfolios over monthly data. We compare sample-estimate frontiers with Bayes-Stein shrinkage variants, incorporate risk-free assets, test practical factor proxies, and evaluate in-sample versus out-of-sample Sharpe stability using Jobson-Korkie and Ledoit-Wolf inference. We then discuss extensions under additional portfolio constraints and methods, and conclude with a framework for assessing mutual fund performance against market/proxy/tangency benchmarks.
 \end{abstract}
 
-% INDUSTRY-STYLE SWITCH:
-% Rename "Abstract" to "Executive Summary" and convert to bullets:
-% 1) What we did
-% 2) What we found
-% 3) Why it matters
-% 4) Decision implications
+% NOTE (open): rename "Abstract" to "Executive Summary" if final style requires.
 
 \section{Introduction}
-Briefly state (i) assignment objective, (ii) economic motivation, and (iii) report roadmap. Keep this section short and focused.
+This report evaluates portfolio choice under estimation risk using monthly data from Ken French industry and factor datasets, selected individual stocks, and practical investable proxies. The central objective is to compare in-sample efficient-frontier results across model choices and then assess whether those results remain credible out of sample.
 
-Suggested paragraph prompts:
-\begin{itemize}[leftmargin=1.2em]
-  \item Why estimation error matters in portfolio choice.
-  \item Why Bayes-Stein and covariance shrinkage are considered.
-  \item Why out-of-sample stability is central for portfolio management.
-\end{itemize}
+The economic motivation is that mean-variance optimization is highly sensitive to estimation error in expected returns and covariances. For that reason, we compare sample-estimate frontiers to Bayes-Stein shrinkage variants and then stress-test findings under matched windows, proxy substitution, and explicit in-sample/out-of-sample evaluation.
 
-% INDUSTRY-STYLE SWITCH:
-% Keep one short "Context" paragraph and move most narrative into exhibits/callouts.
+The report proceeds in four stages. First, we analyze how estimator choice and asset definition (industries versus stocks) affect frontier shape and portfolio statistics. Second, we add the risk-free asset and compare industry, FF3, FF5, and proxy opportunity sets in excess-return space. Third, we test stability across contiguous subperiods using Jobson-Korkie and Ledoit-Wolf inference. Finally, we summarize implementation implications, extension results, and mutual-fund benchmarking outcomes.
 
 \section{Data and Preprocessing}
 \subsection{Data Sources}
-Describe datasets used and exact date coverage:
+The analysis combines:
 \begin{itemize}[leftmargin=1.2em]
   \item Ken French 30 Industry Portfolios (monthly value-weighted returns).
-  \item Fama-French 3 and 5 factor returns.
+  \item Fama-French 3-factor and 5-factor (2x3) monthly returns.
   \item Risk-free rate from Fama-French factors.
-  \item 30-stock matched universe and proxy ETF/futures series (if used).
+  \item A one-stock-per-industry representative universe for Scope 3.
+  \item Practical factor proxies (Market/SMB/HML/RMW/CMA) using investable ETFs.
 \end{itemize}
+The primary assignment window is January 1980 to December 2025, subject to dataset-specific availability and common-window constraints.
 
 \subsection{Sample Alignment and Return Definitions}
-State how overlapping windows are formed and what return space is used:
+To ensure fair comparison, each cross-dataset exercise is run on the date intersection of the relevant series. Scope 3 explicitly reports both \texttt{with\_coal\_30} and \texttt{drop\_coal\_29} windows to show sample-length sensitivity induced by Coal coverage.
+
+Return treatment is consistent with assignment requirements:
 \begin{itemize}[leftmargin=1.2em]
-  \item Gross vs net returns.
-  \item Excess return conversion for factor comparisons.
-  \item Common date intersection policy for fair frontier comparison.
+  \item Industry and stock series are handled as gross returns where appropriate.
+  \item Factor and proxy comparisons are run in excess-return space.
+  \item Industry gross returns are converted to excess returns when compared to FF factors.
 \end{itemize}
 
 \subsection{Methodological Setup}
-Summarize key model ingredients:
+The core optimization objects are the efficient frontier, the global minimum-variance (GMV) portfolio, and the tangency (maximum Sharpe) portfolio. We estimate moments under three specifications:
 \begin{itemize}[leftmargin=1.2em]
-  \item Sample mean/covariance frontiers.
-  \item Bayes-Stein mean shrinkage and covariance shrinkage.
-  \item GMV and tangency portfolio formulas.
-  \item Efficient frontier and CML construction.
+  \item Sample mean and covariance.
+  \item Bayes-Stein mean shrinkage with sample covariance.
+  \item Bayes-Stein mean shrinkage plus covariance shrinkage (baseline fixed $\lambda_{\Sigma}=0.10$, with Ledoit-Wolf as robustness).
 \end{itemize}
-
-% INDUSTRY-STYLE SWITCH:
-% Move technical formulas to appendix; keep only practical assumptions in body.
+For risky-plus-risk-free cases, we report both risky-set frontiers and the capital market line (CML) through the tangency portfolio.
 
 \section{Empirical Results}
 % Word-control template for each subsection:
@@ -143,20 +140,28 @@ Use:
 \end{itemize}
 State in a note that $\delta_{\mu}$ is mean shrinkage intensity and $\lambda_{\Sigma}$ is covariance shrinkage intensity.
 
+\paragraph{Interpretation framework.}
+Task 2 isolates estimator effects within the 30-industry universe. Task 3 then asks whether the same estimator logic carries over when the opportunity set shifts to individual stocks mapped deterministically from SIC to FF30 industries. This sequence separates estimation effect from asset-definition effect.
+
 \begin{figure}[H]
   \centering
-  % \includegraphics[width=0.82\textwidth]{figures/task2_frontiers_industries.png}
-  \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering Placeholder: Task 2 (industries) frontiers with three estimators}}
+  \reportfigorplaceholder{scope2.png}{Placeholder: Task 2 (industries) frontiers with three estimators}
   \caption{Industry frontiers under sample and Bayes-Stein estimators.}
   \label{fig:task2_frontiers}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  % \includegraphics[width=0.82\textwidth]{figures/task3_frontiers_industries_vs_stocks.png}
-  \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering Placeholder: Task 3 industries vs stocks on common sample}}
-  \caption{Industry vs stock frontier comparison on matched windows, with and without Coal sensitivity view.}
+  \reportfigorplaceholder{scope3-coal-s2axes.png}{Placeholder: Task 3 with-coal overlay on Scope 2 axis limits}
+  \caption{Task 3 (\texttt{with\_coal\_30}): industry vs stock frontiers shown on Scope 2 axis limits.}
   \label{fig:task3_frontiers}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{scope3-no-coal-s2axes.png}{Placeholder: Task 3 no-coal overlay on Scope 2 axis limits}
+  \caption{Task 3 (\texttt{drop\_coal\_29}): industry vs stock frontiers shown on Scope 2 axis limits.}
+  \label{fig:task3_frontiers_no_coal}
 \end{figure}
 
 \begin{table}[H]
@@ -202,10 +207,28 @@ State in a note that $\delta_{\mu}$ is mean shrinkage intensity and $\lambda_{\S
   \end{tabular}
   \begin{tablenotes}
     \footnotesize
-    \item Notes: Report common window (`start`, `end`, `n\_obs`) for `with\_coal\_30` and `drop\_coal\_29` directly below this table.
+    \item Notes: Report common window (\texttt{start}, \texttt{end}, \texttt{n\_obs}) for \texttt{with\_coal\_30} and \texttt{drop\_coal\_29} directly below this table.
   \end{tablenotes}
   \end{threeparttable}
 \end{table}
+
+\paragraph{Draft findings to finalize with numbers.}
+\begin{itemize}[leftmargin=1.2em]
+  \item Scope 2 (industries, 1980--2025): tangency Sharpe is very similar under Sample (0.3059) and BS($\mu$) (0.3052), while BS($\mu,\Sigma$) lowers tangency Sharpe to 0.2882. For GMV, Sharpe moves from 0.2050 (Sample) to 0.2109 (BS($\mu,\Sigma$)), indicating modest covariance-regularization benefit at the low-risk end.
+  \item Scope 3 window sensitivity is material: \texttt{with\_coal\_30} uses 103 months (2017-05 to 2025-11), whereas \texttt{drop\_coal\_29} uses 403 months (1992-05 to 2025-11). This alone can change frontier slope and tangency statistics substantially.
+  \item In \texttt{with\_coal\_30}, tangency Sharpes are unusually high (industry 0.771 Sample; stock 0.655 Sample), consistent with short-window instability. In \texttt{drop\_coal\_29}, tangency Sharpes are lower and more moderate (industry 0.353 Sample; stock 0.332 Sample).
+  \item BS($\mu$) has small incremental impact relative to Sample in both scenarios, while BS($\mu,\Sigma$) materially compresses tangency Sharpe (for example industry: 0.771 $\rightarrow$ 0.599 in \texttt{with\_coal\_30}; 0.353 $\rightarrow$ 0.329 in \texttt{drop\_coal\_29}).
+  \item Industry mean-shrinkage intensity is slightly lower in the longer window (0.003719 vs 0.003804), but stock shrinkage intensity is higher (0.013250 vs 0.010809), so the sample-length effect is not uniform across universes.
+\end{itemize}
+
+\paragraph{Scope 3 mapping note.}
+Stock representatives are selected through a deterministic pipeline based on official FF30 SIC ranges (\texttt{Siccodes30}): ticker $\rightarrow$ SIC $\rightarrow$ FF30 industry. Within each mapped industry, one stock is selected using explicit ranking rules (coverage, history length, liquidity, market cap, alphabetical tie-break). Ambiguous or missing matches are disclosed in mapping-audit outputs, so Scope 3 comparisons are reproducible and transparent rather than discretionary.
+
+\paragraph{Interpretation note on Scope 3 levels.}
+Because \texttt{with\_coal\_30} has only 103 observations, its tangency levels should be treated as sensitivity outputs rather than baseline decision targets. The report baseline should emphasize \texttt{drop\_coal\_29} (longer-window robustness) while retaining \texttt{with\_coal\_30} to show full-universe coverage tradeoffs.
+
+\paragraph{Visual comparison between with-coal and no-coal views.}
+Using common Scope 2 axis limits, the \texttt{with\_coal\_30} curves appear steeper and further out in mean-vol space, while \texttt{drop\_coal\_29} appears flatter and closer to long-window Scope 2 behavior. This reinforces the interpretation that short-window estimates (with Coal retained) are more sensitive and can overstate tangency performance relative to the longer-window no-coal specification.
 
 \subsection{From Risk-Free Inclusion to Factor and Proxy Comparisons (Tasks 4-6)}
 Start with the effect of adding the risk-free asset to industries (Task 4), then transition to FF3/FF5 frontier comparisons in excess-return space (Task 5), and finally FF-vs-proxy implementation differences (Task 6).
@@ -216,6 +239,18 @@ Start with the effect of adding the risk-free asset to industries (Task 4), then
   \item Task 6 anchor point: proxy differences should be interpreted as investability/exposure translation gaps, not only as optimization noise.
 \end{itemize}
 
+\paragraph{Task 4 draft narrative.}
+Including the risk-free asset changes the efficient set from the risky-only branch to the CML-tangency representation. In practical terms, the investment decision becomes a leverage/deleverage choice around the tangency portfolio rather than movement along the full risky frontier.
+
+\paragraph{Task 5 draft narrative.}
+When all sets are compared in excess-return space, FF5 and industry tangency portfolios show similar Sharpe levels in our current outputs, while FF3 is weaker. This suggests that the additional FF5 dimensions improve risk-adjusted efficiency relative to FF3 in the sample used, while remaining conditional on period and estimation method.
+
+\paragraph{Task 6 draft narrative.}
+Proxy frontiers are interpreted as implementation analogues, not exact replicas of theoretical factor-mimicking portfolios. The proxy set is deliberately investable and uses transparent ETF choices. In this setup, Proxy-3 resembles FF3 at lower volatility, while Proxy-5 remains close to FF5 on Sharpe, consistent with limited marginal contribution of SMB in the FF5 tangency solution over this sample.
+
+\paragraph{SMB-specific caveat.}
+The SMB proxy is long-only small-cap exposure (IJR), not a strict long-short SMB construction. Differences in SMB weight signs and magnitudes versus FF factors are therefore expected and should be treated as design-consistent.
+
 \subsection{In-Sample vs Out-of-Sample Stability (Task 7)}
 Keep Scope 7 as a standalone section since it answers a different question: whether in-sample frontier winners remain competitive out-of-sample.
 \begin{itemize}[leftmargin=1.2em]
@@ -225,6 +260,8 @@ Keep Scope 7 as a standalone section since it answers a different question: whet
   \item One short conclusion sentence per portfolio: ``survives'' or ``does not survive'' OOS.
 \end{itemize}
 
+The in-sample window ends in December 2002 and the out-of-sample window ends in December 2025, following the assignment brief. We evaluate whether portfolios selected from first-period frontiers (at minimum GMV and tangency for industries and FF5) retain comparable Sharpe performance in the second period. Reporting both Jobson-Korkie and Ledoit-Wolf results provides a side-by-side view of classical versus robust inference.
+
 \subsection{Extension and Fund Evaluation (Tasks 8-9)}
 Task 8 should include one clearly motivated extension (constraint or alternative method) and Task 9 should benchmark three mutual funds against market/proxy/tangency alternatives.
 \begin{itemize}[leftmargin=1.2em]
@@ -232,28 +269,31 @@ Task 8 should include one clearly motivated extension (constraint or alternative
   \item For Task 9, report all three funds in one compact comparison table plus one synthesis paragraph.
 \end{itemize}
 
+For Task 8, the preferred extension is a constrained tangency specification (or one additional robust allocation method) with clear investment interpretation. For Task 9, benchmarks should include a market proxy, relevant factor-proxy portfolios, and tangency-based benchmarks where meaningful.
+
+\IfFileExists{tables/task23_gmv_final.tex}{\input{tables/task23_gmv_final.tex}}{}
+\IfFileExists{tables/task23_tan_final.tex}{\input{tables/task23_tan_final.tex}}{}
+
 \section{Discussion}
-Synthesize cross-task findings:
-\begin{itemize}[leftmargin=1.2em]
-  \item Estimation sensitivity and frontier dispersion.
-  \item Tradeoff between theoretical optimality and implementability.
-  \item Robustness of Sharpe superiority out-of-sample.
-  \item Limits and caveats (data, mapping assumptions, proxy purity).
-\end{itemize}
+The main cross-task pattern is that estimator and sample-design choices materially affect frontier location and tangency composition, while broad ranking conclusions are often more stable than raw weights. This is most visible when moving from industries to stocks and when changing overlap windows.
+
+A second pattern is the implementability tradeoff: theoretical factor frontiers and investable proxy frontiers are directionally aligned but not identical. This gap is informative rather than problematic, because the assignment explicitly asks for practical replication under realistic constraints.
+
+A third pattern is stability risk. Strong in-sample Sharpe rankings do not automatically survive out of sample, so formal IS/OOS testing is necessary before making allocation claims.
+
+Key caveats are mapping assumptions, proxy purity, finite-sample error, and sensitivity to window alignment.
 
 \section{Conclusion}
-End with concise answers to:
+Three conclusions should anchor the final submission once all numbers are finalized.
 \begin{enumerate}[leftmargin=1.2em]
-  \item Which constructions looked strongest in-sample?
-  \item Which were robust out-of-sample?
-  \item What would a portfolio manager realistically implement and why?
+  \item In-sample, shrinkage-based estimators generally produce more credible tangency results than pure sample estimates.
+  \item Out-of-sample, only a subset of in-sample winners remain statistically persuasive once Sharpe-equality tests are applied.
+  \item From an implementation perspective, investable proxy constructions are useful when exposure limitations are disclosed clearly and benchmarked against theoretical factor sets.
 \end{enumerate}
 
-% INDUSTRY-STYLE SWITCH:
-% Replace with:
-% - "Bottom line"
-% - "Actionable allocation recommendation"
-% - "Main risk to recommendation"
+The final version should end with one explicit allocation recommendation and one explicit risk to that recommendation.
+
+% NOTE (open): finish with explicit bottom line, allocation recommendation, and key risk.
 
 \newpage
 \section*{References}
