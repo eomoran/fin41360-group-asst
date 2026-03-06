@@ -145,6 +145,44 @@ def gmv_weights(Sigma: np.ndarray) -> np.ndarray:
     return w
 
 
+def gmv_weights_constrained(
+    Sigma: np.ndarray,
+    w_min: float = 0.0,
+) -> np.ndarray:
+    """
+    Constrained GMV weights with lower bound on each weight.
+
+    Minimizes portfolio variance subject to sum(w)=1 and w_i>=w_min.
+    """
+    Sigma = np.asarray(Sigma)
+    if Sigma.shape[0] != Sigma.shape[1]:
+        raise ValueError("Sigma must be square (N x N)")
+    n = Sigma.shape[0]
+    if n * w_min > 1.0 + 1e-10:
+        raise ValueError("Infeasible lower bound: N * w_min must be <= 1")
+
+    def obj(w: np.ndarray) -> float:
+        return float(w @ Sigma @ w)
+
+    w0 = np.full(n, 1.0 / n)
+    w0 = np.maximum(w0, w_min)
+    w0 = w0 / w0.sum()
+    bounds = [(w_min, None)] * n
+    constraints = [{"type": "eq", "fun": lambda w: float(w.sum() - 1.0)}]
+
+    res = minimize(
+        obj,
+        w0,
+        method="SLSQP",
+        bounds=bounds,
+        constraints=constraints,
+        options={"maxiter": 2000, "ftol": 1e-12},
+    )
+    if not res.success:
+        raise ValueError(f"Constrained GMV optimization failed: {res.message}")
+    return res.x
+
+
 def tangency_weights(mu: np.ndarray, Sigma: np.ndarray, rf: float) -> np.ndarray:
     """
     Tangency portfolio weights for a given risk-free rate.
@@ -236,6 +274,7 @@ def tangency_weights_constrained(
         method="SLSQP",
         bounds=bounds,
         constraints=constraints,
+        options={"maxiter": 2000, "ftol": 1e-12},
     )
     if not res.success:
         raise ValueError(f"Constrained tangency optimization failed: {res.message}")
@@ -397,3 +436,103 @@ def efficient_frontier(
 
     return target_means, vols, weights
 
+
+def efficient_frontier_constrained(
+    mu: np.ndarray,
+    Sigma: np.ndarray,
+    n_points: int = 100,
+    mu_min: Optional[float] = None,
+    mu_max: Optional[float] = None,
+    w_min: float = 0.0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Generate points on a constrained MV frontier via numerical optimization.
+
+    Constraints:
+    - sum(w) = 1
+    - w_i >= w_min
+    - w'mu = target mean
+    """
+    mu = np.asarray(mu).reshape(-1)
+    Sigma = np.asarray(Sigma)
+    if Sigma.shape[0] != Sigma.shape[1]:
+        raise ValueError("Sigma must be square")
+    if Sigma.shape[0] != mu.shape[0]:
+        raise ValueError("Sigma and mu dimension mismatch")
+    if n_points < 2:
+        raise ValueError("n_points must be at least 2")
+    if w_min * len(mu) > 1.0 + 1e-10:
+        raise ValueError("Infeasible lower bound: N * w_min must be <= 1")
+
+    n = len(mu)
+    bounds = [(w_min, None)] * n
+
+    def _solve_return_extreme(maximize: bool) -> np.ndarray:
+        sign = -1.0 if maximize else 1.0
+
+        def obj(w: np.ndarray) -> float:
+            return float(sign * (w @ mu))
+
+        cons = [{"type": "eq", "fun": lambda w: float(w.sum() - 1.0)}]
+        w0 = np.full(n, 1.0 / n)
+        res = minimize(
+            obj,
+            w0,
+            method="SLSQP",
+            bounds=bounds,
+            constraints=cons,
+            options={"maxiter": 2000, "ftol": 1e-12},
+        )
+        if not res.success:
+            raise ValueError(f"Constrained return extreme solve failed: {res.message}")
+        return res.x
+
+    if mu_min is None or mu_max is None:
+        w_ret_min = _solve_return_extreme(maximize=False)
+        w_ret_max = _solve_return_extreme(maximize=True)
+        ret_min = float(w_ret_min @ mu)
+        ret_max = float(w_ret_max @ mu)
+        if mu_min is None:
+            mu_min = ret_min
+        if mu_max is None:
+            mu_max = ret_max
+
+    target_means = np.linspace(float(mu_min), float(mu_max), int(n_points))
+    weights = np.full((len(target_means), n), np.nan, dtype=float)
+    vols = np.full(len(target_means), np.nan, dtype=float)
+
+    # Start at equal-weight and warm-start sequentially for stability.
+    w_prev = np.full(n, 1.0 / n)
+    w_prev = np.maximum(w_prev, w_min)
+    w_prev = w_prev / w_prev.sum()
+
+    for i, m in enumerate(target_means):
+        def var_obj(w: np.ndarray) -> float:
+            return float(w @ Sigma @ w)
+
+        cons = [
+            {"type": "eq", "fun": lambda w: float(w.sum() - 1.0)},
+            {"type": "eq", "fun": lambda w, mm=m: float(w @ mu - mm)},
+        ]
+
+        res = minimize(
+            var_obj,
+            w_prev,
+            method="SLSQP",
+            bounds=bounds,
+            constraints=cons,
+            options={"maxiter": 2000, "ftol": 1e-12},
+        )
+        if not res.success:
+            continue
+
+        w = res.x
+        weights[i, :] = w
+        _, vol = portfolio_stats(w, mu, Sigma)
+        vols[i] = vol
+        w_prev = w
+
+    good = np.isfinite(vols)
+    if not np.any(good):
+        raise ValueError("Constrained frontier solve failed for all target means.")
+    return target_means[good], vols[good], weights[good, :]

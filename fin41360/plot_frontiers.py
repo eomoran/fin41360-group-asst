@@ -906,3 +906,346 @@ def plot_scope6_overlay(
     ax.legend(handles=_portfolio_marker_handles(), loc="lower right", fontsize=8)
     fig.tight_layout()
     return fig
+
+
+def plot_scope8_proxy_panels(
+    scope8_proxy_result: dict,
+    constraint_label: str = "w_i>=0.00",
+    include_ff3_unconstrained_tan: bool = False,
+    limit_basis: str = "ff5_tan",
+    limit_mult: float = 1.1,
+    efficient_frontier_only: bool = True,
+    figsize: tuple[float, float] | None = None,
+    panel_layout: str | None = None,
+    show_title: bool | None = None,
+):
+    """
+    Scope 8 proxy panels with constrained frontier overlays.
+
+    Left panel: FF3 vs Proxy3
+    Right panel: FF5 vs Proxy5
+    """
+    curves = scope8_proxy_result["plot_data"]["curves"]
+    points = scope8_proxy_result["plot_data"]["points"]
+    c_curves = scope8_proxy_result["plot_data"].get("constrained_curves", {})
+    c_points = scope8_proxy_result["plot_data"].get("constrained_tangency_points", {})
+    meta = scope8_proxy_result.get("inputs", {})
+
+    if figsize is None:
+        figsize = _resolve_panel_figsize(panel_layout)
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    if show_title is None:
+        show_title = bool(PLOT_DEFAULTS["show_titles"])
+
+    pairs = [("ff3", "proxy3", "ff3"), ("ff5", "proxy5", "ff5")]
+    titles = ["Scope 8: FF3 vs Proxy-3", "Scope 8: FF5 vs Proxy-5"]
+    series_colors = {
+        "ff3": "#1f77b4",
+        "proxy3": "#ff7f0e",
+        "ff5": "#2ca02c",
+        "proxy5": "#d62728",
+    }
+
+    for ax, (lhs, rhs, base), title in zip(axes, pairs, titles):
+        # Unconstrained frontiers
+        x, y = _frontier_arrays(curves[lhs], points[lhs]["gmv"]["mean"], efficient_frontier_only)
+        ax.plot(
+            x,
+            y,
+            color=series_colors[lhs],
+            linestyle="-",
+            linewidth=1.6,
+            label=f"{lhs.upper()} frontier",
+        )
+        x, y = _frontier_arrays(curves[rhs], points[rhs]["gmv"]["mean"], efficient_frontier_only)
+        ax.plot(
+            x,
+            y,
+            color=series_colors[rhs],
+            linestyle="--",
+            linewidth=1.6,
+            label=f"{rhs.upper()} frontier",
+        )
+
+        # Constrained frontier overlays (same colors, dotted style)
+        if constraint_label in c_curves.get(lhs, {}):
+            cc = c_curves[lhs][constraint_label]
+            cc_vols = np.asarray(cc["vols"], dtype=float)
+            cc_means = np.asarray(cc["means"], dtype=float)
+            if efficient_frontier_only and len(cc_means) > 0:
+                i_gmv = int(np.argmin(cc_vols))
+                cc_mask = cc_means >= float(cc_means[i_gmv])
+                cc_vols, cc_means = cc_vols[cc_mask], cc_means[cc_mask]
+            ax.plot(
+                cc_vols,
+                cc_means,
+                color=series_colors[lhs],
+                linestyle=":",
+                linewidth=1.8,
+                label=f"{lhs.upper()} constrained",
+            )
+        if constraint_label in c_curves.get(rhs, {}):
+            cc = c_curves[rhs][constraint_label]
+            cc_vols = np.asarray(cc["vols"], dtype=float)
+            cc_means = np.asarray(cc["means"], dtype=float)
+            if efficient_frontier_only and len(cc_means) > 0:
+                i_gmv = int(np.argmin(cc_vols))
+                cc_mask = cc_means >= float(cc_means[i_gmv])
+                cc_vols, cc_means = cc_vols[cc_mask], cc_means[cc_mask]
+            c_color = "#9467bd" if rhs == "proxy5" else series_colors[rhs]
+            c_style = "-." if rhs == "proxy5" else ":"
+            ax.plot(
+                cc_vols,
+                cc_means,
+                color=c_color,
+                linestyle=c_style,
+                linewidth=2.1,
+                zorder=3,
+                label=f"{rhs.upper()} constrained",
+            )
+
+        # Unconstrained tangency markers
+        if include_ff3_unconstrained_tan or lhs != "ff3":
+            ax.scatter(
+                points[lhs]["tan"]["vol"],
+                points[lhs]["tan"]["mean"],
+                marker="^",
+                s=70,
+                color=series_colors[lhs],
+                edgecolor="none",
+                label=f"{lhs.upper()} TAN",
+            )
+        ax.scatter(
+            points[rhs]["tan"]["vol"],
+            points[rhs]["tan"]["mean"],
+            marker="^",
+            s=70,
+            facecolors="none",
+            edgecolors=series_colors[rhs],
+            linewidths=1.2,
+            label=f"{rhs.upper()} TAN",
+        )
+
+        # Constrained tangency markers
+        cp_l = c_points.get(lhs, {}).get(constraint_label)
+        cp_r = c_points.get(rhs, {}).get(constraint_label)
+        if cp_l is not None:
+            ax.scatter(
+                cp_l["vol"],
+                cp_l["mean"],
+                marker="X",
+                s=70,
+                color=series_colors[lhs],
+                label=f"{lhs.upper()} TAN ({constraint_label})",
+            )
+        if cp_r is not None:
+            cp_color = "#9467bd" if rhs == "proxy5" else series_colors[rhs]
+            ax.scatter(
+                cp_r["vol"],
+                cp_r["mean"],
+                marker="X",
+                s=70,
+                color=cp_color,
+                edgecolor="white",
+                linewidths=0.6,
+                zorder=4,
+                label=f"{rhs.upper()} TAN ({constraint_label})",
+            )
+
+        _apply_percent_axes(ax, "Volatility (monthly, excess)", "Expected excess return (monthly)")
+        if show_title:
+            ax.set_title(title)
+        ax.grid(True, linestyle="--", alpha=0.4)
+        ax.legend(loc="upper left", fontsize=8)
+
+    if limit_basis == "ff5_proxy5":
+        x_candidates = []
+        y_candidates = []
+        for key in ("ff5", "proxy5"):
+            v, m = _frontier_arrays(curves[key], points[key]["gmv"]["mean"], efficient_frontier_only)
+            if len(v) > 0:
+                x_candidates.append(float(np.nanmax(v)))
+            if len(m) > 0:
+                y_candidates.append(float(np.nanmax(m)))
+            if constraint_label in c_curves.get(key, {}):
+                cc = c_curves[key][constraint_label]
+                cc_vols = np.asarray(cc["vols"], dtype=float)
+                cc_means = np.asarray(cc["means"], dtype=float)
+                if efficient_frontier_only and len(cc_means) > 0:
+                    i_gmv = int(np.argmin(cc_vols))
+                    cc_mask = cc_means >= float(cc_means[i_gmv])
+                    cc_vols, cc_means = cc_vols[cc_mask], cc_means[cc_mask]
+                if len(cc_vols) > 0:
+                    x_candidates.append(float(np.nanmax(cc_vols)))
+                if len(cc_means) > 0:
+                    y_candidates.append(float(np.nanmax(cc_means)))
+
+        x_max = max(x_candidates) * float(limit_mult) if x_candidates else None
+        y_max = max(y_candidates) * float(limit_mult) if y_candidates else None
+        for ax in axes:
+            if x_max is not None and np.isfinite(x_max):
+                ax.set_xlim(0, x_max)
+            if y_max is not None and np.isfinite(y_max):
+                ax.set_ylim(0, y_max)
+    elif limit_basis == "ff5_tan":
+        # Scope 6-like framing: scale from FF5 tangency location.
+        ff5_tan = points["ff5"]["tan"]
+        x_max = float(ff5_tan["vol"]) * float(limit_mult)
+        y_max = float(ff5_tan["mean"]) * float(limit_mult)
+        for ax in axes:
+            ax.set_xlim(0, x_max)
+            ax.set_ylim(0, y_max)
+    else:
+        raise ValueError("limit_basis must be one of {'ff5_proxy5', 'ff5_tan'}")
+
+    if show_title and meta:
+        fig.suptitle(
+            "Question 8: Constrained Frontier Extension "
+            f"({meta.get('is_start', '')} to {meta.get('oos_end', '')})"
+        )
+    fig.tight_layout()
+    return fig
+
+
+def plot_scope8_2_is_oos_panels(
+    scope8_2_result: dict,
+    constraint_label: str = "w_i>=0.00",
+    universes: tuple[str, ...] | None = None,
+    limit_basis: str = "per_panel",
+    limit_mult: float = 1.2,
+    figsize: tuple[float, float] | None = None,
+    show_title: bool | None = None,
+):
+    """
+    Scope 8.2 plot: full IS/OOS frontiers + points for industries, FF5, Proxy5.
+    """
+    data = scope8_2_result["plot_data"]["universes"]
+    base_order = [u for u in ("industries", "ff5", "proxy5") if u in data]
+    if universes is None:
+        order = base_order
+    else:
+        requested = [u for u in universes if u in data]
+        if len(requested) == 0:
+            raise ValueError("Requested universes are not present in scope8_2_result.")
+        order = requested
+    if len(order) == 0:
+        raise ValueError("No universes found in scope8_2_result plot_data.")
+
+    if figsize is None:
+        figsize = (5.0 * len(order), 4.0)
+    fig, axes = plt.subplots(1, len(order), figsize=figsize)
+    if len(order) == 1:
+        axes = [axes]
+    if show_title is None:
+        show_title = bool(PLOT_DEFAULTS["show_titles"])
+
+    color_is = "#1f77b4"
+    color_oos = "#ff7f0e"
+    color_c = "#2ca02c"
+
+    for ax, u in zip(axes, order):
+        block = data[u]
+        c_is = block["is"]["curve"]
+        c_oos = block["oos"]["curve"]
+        pts = block["points"]
+
+        x, y = _frontier_arrays(c_is, pts["is_opt"]["gmv"]["mean"], efficient_frontier_only=True)
+        ax.plot(x, y, color=color_is, linestyle="-", linewidth=1.8, label="IS frontier")
+        x, y = _frontier_arrays(c_oos, pts["oos_opt"]["gmv"]["mean"], efficient_frontier_only=True)
+        ax.plot(x, y, color=color_oos, linestyle="-", linewidth=1.8, label="OOS frontier")
+
+        cc_is = block["is"]["constrained_curves"].get(constraint_label)
+        cc_oos = block["oos"]["constrained_curves"].get(constraint_label)
+        if cc_is is not None:
+            ccv = np.asarray(cc_is["vols"], dtype=float)
+            ccm = np.asarray(cc_is["means"], dtype=float)
+            if len(ccm) > 0:
+                i_gmv = int(np.argmin(ccv))
+                m_gmv = float(ccm[i_gmv])
+                mask = ccm >= m_gmv
+                ccv, ccm = ccv[mask], ccm[mask]
+            ax.plot(ccv, ccm, color=color_is, linestyle=":", linewidth=1.8, label=f"IS constrained ({constraint_label})")
+        if cc_oos is not None:
+            ccv = np.asarray(cc_oos["vols"], dtype=float)
+            ccm = np.asarray(cc_oos["means"], dtype=float)
+            if len(ccm) > 0:
+                i_gmv = int(np.argmin(ccv))
+                m_gmv = float(ccm[i_gmv])
+                mask = ccm >= m_gmv
+                ccv, ccm = ccv[mask], ccm[mask]
+            ax.plot(ccv, ccm, color=color_oos, linestyle=":", linewidth=1.8, label=f"OOS constrained ({constraint_label})")
+
+        # IS/OOS optimal points
+        ax.scatter(pts["is_opt"]["gmv"]["vol"], pts["is_opt"]["gmv"]["mean"], marker="o", s=55, color=color_is, label="IS GMV(opt)")
+        ax.scatter(pts["is_opt"]["tan"]["vol"], pts["is_opt"]["tan"]["mean"], marker="^", s=70, color=color_is, label="IS TAN(opt)")
+        ax.scatter(pts["oos_opt"]["gmv"]["vol"], pts["oos_opt"]["gmv"]["mean"], marker="o", s=55, facecolors="none", edgecolors=color_oos, linewidths=1.2, label="OOS GMV(opt)")
+        ax.scatter(pts["oos_opt"]["tan"]["vol"], pts["oos_opt"]["tan"]["mean"], marker="^", s=70, facecolors="none", edgecolors=color_oos, linewidths=1.2, label="OOS TAN(opt)")
+
+        # IS-selected portfolios in IS and OOS
+        for label, m in [("unconstrained", "x"), (constraint_label, "X")]:
+            p_is = pts["is_selected_on_is"].get(label)
+            p_oos = pts["is_selected_on_oos"].get(label)
+            if p_is is not None:
+                ax.scatter(p_is["vol"], p_is["mean"], marker=m, s=65, color=color_c, label=f"IS sel on IS ({label})")
+            if p_oos is not None:
+                ax.scatter(
+                    p_oos["vol"],
+                    p_oos["mean"],
+                    marker=m,
+                    s=65,
+                    color=color_c,
+                    alpha=0.8,
+                    label=f"IS sel on OOS ({label})",
+                )
+
+        _apply_percent_axes(ax, "Volatility (monthly)", "Expected return (monthly)")
+        title = f"Scope 8.2: {u.upper()}"
+        if show_title:
+            ax.set_title(title)
+        ax.grid(True, linestyle="--", alpha=0.4)
+        ax.legend(loc="upper left", fontsize=7)
+        label_text = {"industries": "Industries", "ff5": "FF5", "proxy5": "Proxy5"}.get(u, u)
+        ax.text(
+            0.98,
+            0.03,
+            label_text,
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=9,
+            bbox={"boxstyle": "round,pad=0.2", "facecolor": "white", "alpha": 0.75, "edgecolor": "none"},
+        )
+
+    if limit_basis == "ff5":
+        if "ff5" not in data:
+            raise ValueError("limit_basis='ff5' requires FF5 universe in plot_data.")
+        b = data["ff5"]
+        # Use FF5 IS/OOS unconstrained TAN and constrained frontier envelope as scaling anchors.
+        x_candidates = [
+            float(b["points"]["is_opt"]["tan"]["vol"]),
+            float(b["points"]["oos_opt"]["tan"]["vol"]),
+        ]
+        y_candidates = [
+            float(b["points"]["is_opt"]["tan"]["mean"]),
+            float(b["points"]["oos_opt"]["tan"]["mean"]),
+        ]
+        cc_is = b["is"]["constrained_curves"].get(constraint_label)
+        cc_oos = b["oos"]["constrained_curves"].get(constraint_label)
+        for cc in (cc_is, cc_oos):
+            if cc is not None:
+                ccv = np.asarray(cc["vols"], dtype=float)
+                ccm = np.asarray(cc["means"], dtype=float)
+                if len(ccv) > 0:
+                    x_candidates.append(float(np.nanmax(ccv)))
+                if len(ccm) > 0:
+                    y_candidates.append(float(np.nanmax(ccm)))
+        x_max = max(x_candidates) * float(limit_mult)
+        y_max = max(y_candidates) * float(limit_mult)
+        for ax in axes:
+            ax.set_xlim(0, x_max)
+            ax.set_ylim(0, y_max)
+    elif limit_basis != "per_panel":
+        raise ValueError("limit_basis must be one of {'per_panel', 'ff5'}")
+
+    fig.tight_layout()
+    return fig
