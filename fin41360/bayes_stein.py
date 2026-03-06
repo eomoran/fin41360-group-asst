@@ -7,6 +7,7 @@ We implement:
   matrix and sample length.
 - A simple covariance shrinkage towards a scalar multiple of the identity,
   with a user-chosen shrinkage intensity.
+- A Ledoit-Wolf covariance shrinkage estimator (data-driven shrinkage).
 
 EXPLAIN: There are many possible shrinkage schemes. We pick:
 - Jorion-style mean shrinkage because it directly matches the course readings
@@ -20,7 +21,6 @@ EXPLAIN: There are many possible shrinkage schemes. We pick:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 
@@ -124,9 +124,8 @@ def shrink_covariance_identity(
       the sample covariance is reasonably well-estimated; we therefore choose
       a **modest** shrinkage λ (default 0.1) to improve conditioning without
       imposing a strong structural view on correlations.
-    - Alternatives would include constant-correlation or Ledoit–Wolf-type
-      optimally chosen λ; these are more complex to implement and may not
-      materially change results in this relatively high T / low N setting.
+    - Alternatives include constant-correlation targets and data-driven methods
+      such as Ledoit-Wolf (implemented in `shrink_covariance_ledoit_wolf`).
     """
     Sigma = np.asarray(Sigma)
     N = Sigma.shape[0]
@@ -139,3 +138,41 @@ def shrink_covariance_identity(
     Sigma_bs = (1.0 - lam) * Sigma + lam * target
     return Sigma_bs
 
+
+def shrink_covariance_ledoit_wolf(
+    returns_net: np.ndarray,
+) -> tuple[np.ndarray, float]:
+    """
+    Estimate covariance using Ledoit-Wolf shrinkage.
+
+    Parameters
+    ----------
+    returns_net : np.ndarray, shape (T, N)
+        Net returns matrix.
+
+    Returns
+    -------
+    (Sigma_lw, lambda_lw)
+        Sigma_lw : np.ndarray, shape (N, N)
+            Ledoit-Wolf covariance estimate.
+        lambda_lw : float
+            Estimated shrinkage intensity from the fitted model.
+    """
+    try:
+        from sklearn.covariance import LedoitWolf
+    except Exception as e:
+        raise ImportError(
+            "scikit-learn is required for Ledoit-Wolf covariance shrinkage. "
+            "Install with: pip install scikit-learn"
+        ) from e
+
+    x = np.asarray(returns_net, dtype=float)
+    if x.ndim != 2:
+        raise ValueError("returns_net must be a 2D array of shape (T, N).")
+    if x.shape[0] < 2:
+        raise ValueError("returns_net must contain at least 2 observations.")
+
+    lw = LedoitWolf().fit(x)
+    Sigma_lw = np.asarray(lw.covariance_, dtype=float)
+    lambda_lw = float(getattr(lw, "shrinkage_", np.nan))
+    return Sigma_lw, lambda_lw

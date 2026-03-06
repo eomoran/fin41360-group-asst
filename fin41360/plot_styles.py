@@ -15,7 +15,8 @@ FRONTIER_STYLE = {
 
 CML_STYLE = {
     "linewidth": 1.5,
-    "alpha": 0.6,
+    "linestyle": (0, (2, 1)),
+    "alpha": 1.0,
     "zorder": 2,
 }
 
@@ -36,15 +37,15 @@ SERIES = {
     "sample": {"color": "C0", "linestyle": "-", "label": "Sample (no shrinkage)"},
     "bs_mean": {"color": "C1", "linestyle": "--", "label": "Bayes-Stein mean shrinkage"},
     "bs_mean_cov": {"color": "C2", "linestyle": "-.", "label": "Bayes-Stein mean+cov shrinkage"},
-    "industries": {"color": "C0", "linestyle": "-", "label": "Industries (excess)"},
-    "cml": {"color": "C1", "label": "CML (industries + risk-free)"},
-    "ff3": {"color": "C1", "linestyle": "-", "label": "FF3 factors (excess)"},
-    "ff5": {"color": "C2", "linestyle": "-", "label": "FF5 factors (excess)"},
+    "industries": {"color": "C0", "linestyle": "-", "label": "Industries"},
+    "cml": {"color": "C1", "label": "CML"},
+    "ff3": {"color": "C1", "linestyle": "-", "label": "FF3 factors"},
+    "ff5": {"color": "C2", "linestyle": "-", "label": "FF5 factors"},
 }
 
 # --- Proxy variant: same colour as base series, dashed linestyle; hollow circle/triangle for gmv/tan ---
 PROXY_LINESTYLE = "--"  # same for both ff3 and ff5
-PROXY_LABELS = {"ff3": "Proxy-3 ETFs", "ff5": "Proxy-5 ETFs"}
+PROXY_LABELS = {"ff3": "3-factor proxy basket", "ff5": "5-factor proxy basket"}
 
 # --- Scope 3 (kept for notebook that still uses nested structure) ---
 ESTIMATOR_STYLE = {k: v for k, v in SERIES.items() if k in ("sample", "bs_mean", "bs_mean_cov")}
@@ -121,7 +122,8 @@ def style(
 
 def scope6_legend_handles():
     """Return (line_handles, marker_handles) for Scope 6 single-panel: no redundant keys.
-    Line legend: FF3, Proxy-3, FF5, Proxy-5. Marker legend: GMV, TAN, Proxy-3 ETFs (square), Proxy-5 ETFs (square).
+    Line legend: FF3, 3-factor proxy, FF5, 5-factor proxy.
+    Marker legend: GMV, TAN, 3-factor proxy basket (square), 5-factor proxy basket (square).
     """
     from matplotlib.lines import Line2D
 

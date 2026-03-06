@@ -9,7 +9,17 @@ By default files are **not overwritten**. If a name already exists, a version su
 ## Notebook snippet
 
 ```python
+from fin41360.plot_frontiers import set_plot_defaults
 from fin41360.report_assets import save_figures, save_scope_summary_tables, save_table
+
+# overlay plots: choose 'single_column' or 'full_width'
+# panel plots: fixed to 'full_width'
+set_plot_defaults(
+    overlay_layout="single_column",
+    panel_layout="full_width",
+    show_titles=False,   # use captions in LaTeX instead of in-chart titles
+    figsize_scale=2,     # integer upscale; keep aspect ratio, shrink in LaTeX
+)
 
 # --- figures ---
 saved_figs = save_figures(
@@ -24,7 +34,7 @@ saved_figs = save_figures(
     },
     overwrite=False,   # keep prior exports by versioning
     fmt="png",
-    dpi=220,
+    dpi=300,
 )
 saved_figs
 ```

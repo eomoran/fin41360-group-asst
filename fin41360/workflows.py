@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .bayes_stein import bayes_stein_means, shrink_covariance_identity
+from .bayes_stein import bayes_stein_means, shrink_covariance_identity, shrink_covariance_ledoit_wolf
 from .frontier_workflow import (
     build_cml,
     build_frontier_curve,
@@ -40,7 +40,7 @@ from .sharpe_tests import (
 def run_scope2_industries_sample_vs_bs(
     ind_gross: pd.DataFrame,
     rf_gross: pd.Series,
-    cov_shrink: float = 0.1,
+    cov_shrink: float | str = "ledoit_wolf",
     tan_return_mult: float = 1.2,
     n_points: int = 1200,
 ) -> dict[str, Any]:
@@ -71,7 +71,17 @@ def run_scope2_industries_sample_vs_bs(
     T = len(ind_aligned)
     bs = bayes_stein_means(mu_sample, Sigma_sample, T=T)
     mu_bs = bs.mu_bs
-    Sigma_bs = shrink_covariance_identity(Sigma_sample, shrinkage=cov_shrink)
+    if isinstance(cov_shrink, str):
+        mode = cov_shrink.strip().lower()
+        if mode in {"ledoit_wolf", "lw"}:
+            Sigma_bs, cov_shrink_eff = shrink_covariance_ledoit_wolf(ind_aligned.values - 1.0)
+            cov_shrink_method = "ledoit_wolf"
+        else:
+            raise ValueError("cov_shrink string mode must be one of {'ledoit_wolf','lw'}")
+    else:
+        cov_shrink_eff = float(cov_shrink)
+        Sigma_bs = shrink_covariance_identity(Sigma_sample, shrinkage=cov_shrink_eff)
+        cov_shrink_method = "identity_fixed_lambda"
 
     models = {
         "sample": {"mu": mu_sample, "Sigma": Sigma_sample},
@@ -142,6 +152,8 @@ def run_scope2_industries_sample_vs_bs(
         "diagnostics": {
             "bs_mean_shrinkage_intensity": bs.shrinkage_intensity,
             "bs_target_mean": bs.target_mean,
+            "cov_shrink_method": cov_shrink_method,
+            "cov_shrink_effective_lambda": float(cov_shrink_eff),
             "sample_cov_eig_min": float(np.min(eig_sample)),
             "sample_cov_eig_max": float(np.max(eig_sample)),
             "bs_cov_eig_min": float(np.min(eig_bs)),
@@ -154,7 +166,7 @@ def run_scope3_industries_vs_stocks(
     ind_gross: pd.DataFrame,
     stocks_gross: pd.DataFrame,
     rf_gross: pd.Series,
-    cov_shrink: float = 0.1,
+    cov_shrink: float | str = "ledoit_wolf",
     tan_return_mult: float = 1.2,
     n_points: int = 200,
 ) -> dict[str, Any]:
@@ -190,8 +202,20 @@ def run_scope3_industries_vs_stocks(
     T_common = len(common_idx)
     bs_ind = bayes_stein_means(mu_ind, Sigma_ind, T=T_common)
     bs_stk = bayes_stein_means(mu_stk, Sigma_stk, T=T_common)
-    Sigma_ind_bs = shrink_covariance_identity(Sigma_ind, shrinkage=cov_shrink)
-    Sigma_stk_bs = shrink_covariance_identity(Sigma_stk, shrinkage=cov_shrink)
+    if isinstance(cov_shrink, str):
+        mode = cov_shrink.strip().lower()
+        if mode in {"ledoit_wolf", "lw"}:
+            Sigma_ind_bs, cov_shrink_eff_ind = shrink_covariance_ledoit_wolf(ind_common.values - 1.0)
+            Sigma_stk_bs, cov_shrink_eff_stk = shrink_covariance_ledoit_wolf(stocks_common.values - 1.0)
+            cov_shrink_method = "ledoit_wolf"
+        else:
+            raise ValueError("cov_shrink string mode must be one of {'ledoit_wolf','lw'}")
+    else:
+        cov_shrink_eff_ind = float(cov_shrink)
+        cov_shrink_eff_stk = float(cov_shrink)
+        Sigma_ind_bs = shrink_covariance_identity(Sigma_ind, shrinkage=cov_shrink_eff_ind)
+        Sigma_stk_bs = shrink_covariance_identity(Sigma_stk, shrinkage=cov_shrink_eff_stk)
+        cov_shrink_method = "identity_fixed_lambda"
 
     models = {
         "sample": {
@@ -286,6 +310,9 @@ def run_scope3_industries_vs_stocks(
         "diagnostics": {
             "bs_industry_shrinkage_intensity": bs_ind.shrinkage_intensity,
             "bs_stock_shrinkage_intensity": bs_stk.shrinkage_intensity,
+            "cov_shrink_method": cov_shrink_method,
+            "cov_shrink_effective_lambda_industry": float(cov_shrink_eff_ind),
+            "cov_shrink_effective_lambda_stock": float(cov_shrink_eff_stk),
             "note": "Scope 3 frontiers are estimated on overlapping dates with complete data.",
             "note_data_source_and_mapping": (
                 "Stock data source is loaded dynamically from load_stock_returns_monthly(...) "
@@ -356,7 +383,7 @@ def run_scope3_sensitivity_with_and_without_coal(
     ind_gross: pd.DataFrame,
     stocks_gross: pd.DataFrame,
     rf_gross: pd.Series,
-    cov_shrink: float = 0.1,
+    cov_shrink: float | str = "ledoit_wolf",
     tan_return_mult: float = 1.2,
     n_points: int = 200,
     coal_mapping_csv: str | Path | None = None,
@@ -438,8 +465,11 @@ def run_scope3_sensitivity_with_and_without_coal(
                 "n_obs": with_coal["inputs"]["n_obs"],
                 "n_assets_industry": with_coal["inputs"]["n_assets_industry"],
                 "n_assets_stock": with_coal["inputs"]["n_assets_stock"],
-                "bs_industry_shrinkage_intensity": with_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
-                "bs_stock_shrinkage_intensity": with_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+                "mean_shrinkage_intensity_industry": with_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
+                "mean_shrinkage_intensity_stock": with_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+                "cov_shrink_method": with_coal["diagnostics"]["cov_shrink_method"],
+                "cov_shrinkage_intensity_industry": with_coal["diagnostics"]["cov_shrink_effective_lambda_industry"],
+                "cov_shrinkage_intensity_stock": with_coal["diagnostics"]["cov_shrink_effective_lambda_stock"],
             },
             {
                 "scenario": "drop_coal_29",
@@ -448,8 +478,11 @@ def run_scope3_sensitivity_with_and_without_coal(
                 "n_obs": drop_coal["inputs"]["n_obs"],
                 "n_assets_industry": drop_coal["inputs"]["n_assets_industry"],
                 "n_assets_stock": drop_coal["inputs"]["n_assets_stock"],
-                "bs_industry_shrinkage_intensity": drop_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
-                "bs_stock_shrinkage_intensity": drop_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+                "mean_shrinkage_intensity_industry": drop_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
+                "mean_shrinkage_intensity_stock": drop_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+                "cov_shrink_method": drop_coal["diagnostics"]["cov_shrink_method"],
+                "cov_shrinkage_intensity_industry": drop_coal["diagnostics"]["cov_shrink_effective_lambda_industry"],
+                "cov_shrinkage_intensity_stock": drop_coal["diagnostics"]["cov_shrink_effective_lambda_stock"],
             },
         ]
     )

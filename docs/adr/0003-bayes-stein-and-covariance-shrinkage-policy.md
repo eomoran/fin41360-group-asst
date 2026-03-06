@@ -1,6 +1,6 @@
 # ADR-0003: Bayes-Stein Mean Shrinkage And Covariance Shrinkage Policy
 
-- Status: Accepted (current baseline), with explicit alternatives recorded
+- Status: Accepted (updated baseline), with explicit alternatives recorded
 - Date: 2026-03-01
 - Scope: Scope 2-3 (`fin41360/bayes_stein.py`, `fin41360/workflows.py`)
 
@@ -17,9 +17,9 @@ This ADR fixes the current baseline and records when to switch methods.
 - Implementation: `bayes_stein_means(mu, Sigma, T)` in `fin41360/bayes_stein.py`.
 
 2. Covariance shrinkage:
-- Use fixed convex shrinkage to scaled identity:
+- Use **Ledoit-Wolf** covariance shrinkage as the Scope 2/3 default.
+- Keep fixed convex shrinkage to scaled identity as an explicit override:
   `Sigma_bs = (1 - lambda) * Sigma + lambda * (trace(Sigma)/N) I`.
-- Current default `lambda = 0.1` in Scope 2/3 workflows (`cov_shrink`).
 
 3. Numerical safeguards:
 - If `T <= N + 2`, skip mean shrinkage (`delta = 0`) to avoid unstable formula behavior.
@@ -28,8 +28,10 @@ This ADR fixes the current baseline and records when to switch methods.
 ## Rationale
 
 - Cross-sectional target is transparent and consistent with current code and scope write-up.
-- With high `T/N` in baseline industry sample, light covariance regularization is sufficient.
-- Fixed `lambda` provides deterministic reproducibility across runs/team members.
+- Ledoit-Wolf gives data-driven covariance regularization without hand-picking
+  `lambda` per window/universe.
+- Fixed `lambda` remains available for controlled sensitivity checks and
+  backwards comparability.
 
 ## Alternatives Considered
 
@@ -37,9 +39,9 @@ This ADR fixes the current baseline and records when to switch methods.
 - Valid and used in some team notebooks.
 - Not current baseline; should be exposed as a parameter if we formalize dual-target runs.
 
-2. Data-driven covariance shrinkage (e.g., Ledoit-Wolf estimator):
-- Stronger statistical grounding for `lambda`.
-- Not currently implemented for covariance estimation in Scope 2/3 baseline.
+2. Fixed covariance shrinkage (`lambda = 0.1`) baseline:
+- Previously used as baseline for deterministic reproducibility.
+- Now retained as optional override only.
 
 ## Revisit Triggers And Tests
 
