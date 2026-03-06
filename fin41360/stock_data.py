@@ -29,7 +29,7 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from .config import PROCESSED_DIR, PROJECT_ROOT
+from .config import PROCESSED_DIR, PROJECT_ROOT, RAW_DIR
 
 # One representative stock per Fama–French 30 industry (Yahoo Finance tickers).
 # Chosen for large cap, liquid, and long history where possible. Alternatives
@@ -76,6 +76,15 @@ LEGACY_STOCK_GROSS_FILE = "stock_30_monthly_gross.csv"
 BALANCED_STOCK_NET_FILE = "clean_30_stocks_monthly_returns_balanced_1990_2025.csv"
 SCOPE3_SELECTED_GROSS_FILE = "scope3_selected_30_stock_monthly_gross.csv"
 SCOPE3_SELECTED_MAPPING_FILE = "scope3_selected_30_stocks_ff30.csv"
+SCOPE6_PROXY_RAW_CLOSE_FILE = "scope6_proxy_etf_adj_close_daily.csv"
+SCOPE6_PROXY_RETURNS_FILE = "scope6_proxy_returns_monthly_net.csv"
+SCOPE6_PROXY_TICKERS = {
+    "Mkt": "VTI",
+    "SMB": "IJR",
+    "HML": "IWD",
+    "RMW": "QUAL",
+    "CMA": "USMV",
+}
 
 # Proposed/manual crosswalk for the balanced long-history stock set.
 # IMPORTANT: this is not an official Ken French / CRSP mapping for the FF30
@@ -163,6 +172,173 @@ def _load_scope3_selected_cached_gross(start: str, end: str) -> pd.DataFrame:
     df.attrs["stock_source"] = "scope3_selected_cached_gross"
     df.attrs["stock_source_file"] = _display_path(path)
     return df
+
+
+def _scope6_raw_path(raw_file: str | Path | None = None) -> Path:
+    if raw_file is not None:
+        return Path(raw_file)
+    return RAW_DIR / "scope6" / SCOPE6_PROXY_RAW_CLOSE_FILE
+
+
+def _scope6_processed_path(out_file: str | Path | None = None) -> Path:
+    if out_file is not None:
+        return Path(out_file)
+    return PROCESSED_DIR / SCOPE6_PROXY_RETURNS_FILE
+
+
+def _coerce_month_end_index(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    out.index = pd.to_datetime(out.index).to_period("M").to_timestamp("M")
+    return out.sort_index()
+
+
+def _build_scope6_proxy_returns_from_close(
+    close: pd.DataFrame,
+    *,
+    start: str,
+    end: str,
+    proxy_tickers: dict[str, str],
+) -> pd.DataFrame:
+    if not isinstance(close.index, pd.DatetimeIndex):
+        raise ValueError("Proxy close-price data must have a DatetimeIndex.")
+
+    ticker_order = [proxy_tickers[k] for k in ("Mkt", "SMB", "HML", "RMW", "CMA")]
+    missing = [t for t in ticker_order if t not in close.columns]
+    if missing:
+        raise ValueError(f"Raw proxy close data missing required tickers: {missing}")
+
+    close = close.sort_index().loc[:, ticker_order]
+    monthly = close.resample("ME").last()
+    returns = monthly.pct_change().replace([float("inf"), float("-inf")], pd.NA)
+    returns = returns.rename(columns={v: k for k, v in proxy_tickers.items()})
+    returns = returns.loc[:, ["Mkt", "SMB", "HML", "RMW", "CMA"]]
+    returns = returns.dropna(how="any")
+    returns = _coerce_month_end_index(returns).loc[start:end]
+    return returns
+
+
+def _load_scope6_proxy_processed(start: str, end: str, *, out_file: str | Path | None = None) -> pd.DataFrame:
+    path = _scope6_processed_path(out_file)
+    if not path.exists():
+        raise FileNotFoundError(f"Scope 6 proxy processed file not found: {path}")
+    df = pd.read_csv(path, index_col=0, parse_dates=True)
+    df = _coerce_month_end_index(df).loc[start:end]
+    df = df.loc[:, ["Mkt", "SMB", "HML", "RMW", "CMA"]]
+    df.attrs["proxy_source"] = "scope6_proxy_processed_cache"
+    df.attrs["proxy_source_file"] = _display_path(path)
+    return df
+
+
+def build_scope6_proxy_returns_monthly(
+    start: str = "2000-01",
+    end: str = "2025-12",
+    *,
+    raw_file: str | Path | None = None,
+    out_file: str | Path | None = None,
+    proxy_tickers: dict[str, str] | None = None,
+) -> Path:
+    """
+    Fetch Scope 6 proxy ETF adjusted close data and write monthly net returns.
+
+    Raw daily close prices are saved under `RAW_DIR/scope6/` and processed
+    monthly net returns are saved under `PROCESSED_DIR/`.
+    """
+    tickers = dict(proxy_tickers or SCOPE6_PROXY_TICKERS)
+    raw_path = _scope6_raw_path(raw_file)
+    out_path = _scope6_processed_path(out_file)
+
+    try:
+        import yfinance as yf
+    except ImportError as exc:
+        raise ImportError("yfinance is required for proxy data. Install with: pip install yfinance") from exc
+
+    start_d = pd.Timestamp(start) - pd.offsets.MonthBegin(1)
+    end_d = pd.Timestamp(end) + pd.offsets.MonthEnd(1)
+    data = yf.download(list(tickers.values()), start=start_d, end=end_d, progress=False, auto_adjust=True)
+    if data is None or len(data) == 0:
+        raise RuntimeError("No proxy ETF data downloaded from yfinance.")
+
+    if isinstance(data.columns, pd.MultiIndex):
+        if "Close" in data.columns.get_level_values(0):
+            close = data["Close"].copy()
+        else:
+            close = data.xs("Close", axis=1, level=0, drop_level=True).copy()
+    else:
+        close = data.copy()
+
+    if isinstance(close, pd.Series):
+        close = close.to_frame()
+
+    close = close.sort_index()
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    close.to_csv(raw_path)
+
+    returns = _build_scope6_proxy_returns_from_close(close, start=start, end=end, proxy_tickers=tickers)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    returns.to_csv(out_path)
+    return out_path
+
+
+def load_scope6_proxy_returns_monthly(
+    start: str = "2000-01",
+    end: str = "2025-12",
+    *,
+    use_cache: bool = True,
+    source: str = "auto",
+    refresh: bool = False,
+    raw_file: str | Path | None = None,
+    out_file: str | Path | None = None,
+    proxy_tickers: dict[str, str] | None = None,
+) -> pd.DataFrame:
+    """
+    Load Scope 6 proxy ETF monthly net returns with local-first cache policy.
+
+    source:
+    - 'auto' (default): processed cache -> raw cache -> yfinance
+    - 'processed': processed cache only
+    - 'raw': raw close cache only (derive monthly returns locally)
+    - 'yfinance': always fetch and rebuild raw + processed caches
+    """
+    src = source.strip().lower()
+    if src not in {"auto", "processed", "raw", "yfinance"}:
+        raise ValueError("source must be one of {'auto', 'processed', 'raw', 'yfinance'}")
+
+    tickers = dict(proxy_tickers or SCOPE6_PROXY_TICKERS)
+    raw_path = _scope6_raw_path(raw_file)
+    out_path = _scope6_processed_path(out_file)
+
+    if src == "processed":
+        return _load_scope6_proxy_processed(start=start, end=end, out_file=out_file)
+
+    if src == "raw":
+        if not raw_path.exists():
+            raise FileNotFoundError(f"Scope 6 proxy raw close file not found: {raw_path}")
+        close = pd.read_csv(raw_path, index_col=0, parse_dates=True)
+        returns = _build_scope6_proxy_returns_from_close(close, start=start, end=end, proxy_tickers=tickers)
+        returns.attrs["proxy_source"] = "scope6_proxy_raw_cache_derived"
+        returns.attrs["proxy_source_file"] = _display_path(raw_path)
+        return returns
+
+    if src == "auto":
+        if not refresh and use_cache and out_path.exists():
+            return _load_scope6_proxy_processed(start=start, end=end, out_file=out_file)
+        if not refresh and use_cache and raw_path.exists():
+            close = pd.read_csv(raw_path, index_col=0, parse_dates=True)
+            returns = _build_scope6_proxy_returns_from_close(close, start=start, end=end, proxy_tickers=tickers)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            returns.to_csv(out_path)
+            returns.attrs["proxy_source"] = "scope6_proxy_raw_cache_derived"
+            returns.attrs["proxy_source_file"] = _display_path(raw_path)
+            return returns
+
+    build_scope6_proxy_returns_monthly(
+        start=start,
+        end=end,
+        raw_file=raw_file,
+        out_file=out_file,
+        proxy_tickers=tickers,
+    )
+    return _load_scope6_proxy_processed(start=start, end=end, out_file=out_file)
 
 
 def build_scope3_selected_stock_returns(

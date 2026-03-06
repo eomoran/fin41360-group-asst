@@ -10,7 +10,12 @@ By default files are **not overwritten**. If a name already exists, a version su
 
 ```python
 from fin41360.plot_frontiers import set_plot_defaults
-from fin41360.report_assets import save_figures, save_scope_summary_tables, save_table
+from fin41360.report_assets import (
+    save_figures,
+    save_scope_summary_tables,
+    save_scope_presentation_tables,
+    save_table,
+)
 
 # overlay plots: choose 'single_column' or 'full_width'
 # panel plots: fixed to 'full_width'
@@ -19,6 +24,18 @@ set_plot_defaults(
     panel_layout="full_width",
     show_titles=False,   # use captions in LaTeX instead of in-chart titles
     figsize_scale=2,     # integer upscale; keep aspect ratio, shrink in LaTeX
+)
+
+# Scope 6: lock report exports to FF5-based limits
+fig_scope6_overlay = plot_scope6_overlay(
+    scope6,
+    efficient_frontier_only=PLOT_DEFAULTS["efficient_frontier_only"],
+    limit_basis="ff5",
+)
+fig_scope6_panels = plot_scope6_panels(
+    scope6,
+    efficient_frontier_only=PLOT_DEFAULTS["efficient_frontier_only"],
+    limit_basis="ff5",
 )
 
 # --- figures ---
@@ -54,11 +71,23 @@ scope7_paths = save_scope_summary_tables(scope7, "scope7", overwrite=False)
 # --- custom table exports (for polished report tables) ---
 save_table(gmv_table_final, "task23_gmv_final", overwrite=True, index=False, float_format="%.5f")
 save_table(tan_table_final, "task23_tan_final", overwrite=True, index=False, float_format="%.5f")
+
+# --- presentation tables (scopes 2-7; delta columns + x1e3 scaling) ---
+pres_paths = save_scope_presentation_tables(
+    scope2_result=scope2,
+    scope3_sensitivity_result=scope3_sensitivity,
+    scope5_result=scope5,
+    scope6_result=scope6,
+    scope7_result=scope7,
+    overwrite=True,
+    index=False,
+    float_format="%.5f",
+)
 ```
 
 ## Suggested naming pattern
 
-- Figures: `taskX_short_description`
+- Figures: `report_scopeX_*` for main-body figures, `appendix_scopeX_*_anchored_origin_common_limits` for comparability figures
 - Tables: `taskX_table_name`
 - Scope sensitivity: append `_with_coal` or `_drop_coal`
 
@@ -66,3 +95,14 @@ Examples:
 - `task3_with_coal_vs_drop_limits.png`
 - `task6_proxy3_vs_ff3.csv`
 - `task7_is_oos_tests.tex`
+
+## One-shot exporter
+
+```bash
+python report/generate_scope2_7_assets.py
+```
+
+This script enforces:
+- Scope 6 report figures use `limit_basis="ff5"`.
+- Scope 2 report figure uses full frontier branch (`efficient_frontier_only=False`).
+- Larger export sizes (same aspect ratio, easier to scale down in LaTeX).

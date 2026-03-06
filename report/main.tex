@@ -139,28 +139,34 @@ Use:
   \item Bayes-Stein mean+covariance: $\delta_{\mu}=\hat{\delta}_{\mu}$, $\lambda_{\Sigma}=0.10$ (baseline) or $\lambda_{\Sigma}=\lambda_{LW}$ (robustness)
 \end{itemize}
 State in a note that $\delta_{\mu}$ is mean shrinkage intensity and $\lambda_{\Sigma}$ is covariance shrinkage intensity.
+For Bayes-Stein mean shrinkage, we use:
+\[
+\mu_{BS}=(1-\delta_{\mu})\mu+\delta_{\mu}\bar{\mu}\mathbf{1},
+\qquad
+\Delta\mu=\mu_{BS}-\mu=\delta_{\mu}(\bar{\mu}\mathbf{1}-\mu).
+\]
 
 \paragraph{Interpretation framework.}
 Task 2 isolates estimator effects within the 30-industry universe. Task 3 then asks whether the same estimator logic carries over when the opportunity set shifts to individual stocks mapped deterministically from SIC to FF30 industries. This sequence separates estimation effect from asset-definition effect.
 
 \begin{figure}[H]
   \centering
-  \reportfigorplaceholder{scope2.png}{Placeholder: Task 2 (industries) frontiers with three estimators}
+  \reportfigorplaceholder{report_scope2.png}{Placeholder: Task 2 (industries) frontiers with three estimators}
   \caption{Industry frontiers under sample and Bayes-Stein estimators.}
   \label{fig:task2_frontiers}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \reportfigorplaceholder{scope3-coal-s2axes.png}{Placeholder: Task 3 with-coal overlay on Scope 2 axis limits}
-  \caption{Task 3 (\texttt{with\_coal\_30}): industry vs stock frontiers shown on Scope 2 axis limits.}
+  \reportfigorplaceholder{report_scope3_with_coal.png}{Placeholder: Task 3 with-coal overlay}
+  \caption{Task 3 (\texttt{with\_coal\_30}): industry vs stock frontiers with local readability limits.}
   \label{fig:task3_frontiers}
 \end{figure}
 
 \begin{figure}[H]
   \centering
-  \reportfigorplaceholder{scope3-no-coal-s2axes.png}{Placeholder: Task 3 no-coal overlay on Scope 2 axis limits}
-  \caption{Task 3 (\texttt{drop\_coal\_29}): industry vs stock frontiers shown on Scope 2 axis limits.}
+  \reportfigorplaceholder{report_scope3_drop_coal.png}{Placeholder: Task 3 no-coal overlay}
+  \caption{Task 3 (\texttt{drop\_coal\_29}): industry vs stock frontiers with local readability limits.}
   \label{fig:task3_frontiers_no_coal}
 \end{figure}
 
@@ -228,7 +234,7 @@ Stock representatives are selected through a deterministic pipeline based on off
 Because \texttt{with\_coal\_30} has only 103 observations, its tangency levels should be treated as sensitivity outputs rather than baseline decision targets. The report baseline should emphasize \texttt{drop\_coal\_29} (longer-window robustness) while retaining \texttt{with\_coal\_30} to show full-universe coverage tradeoffs.
 
 \paragraph{Visual comparison between with-coal and no-coal views.}
-Using common Scope 2 axis limits, the \texttt{with\_coal\_30} curves appear steeper and further out in mean-vol space, while \texttt{drop\_coal\_29} appears flatter and closer to long-window Scope 2 behavior. This reinforces the interpretation that short-window estimates (with Coal retained) are more sensitive and can overstate tangency performance relative to the longer-window no-coal specification.
+With local readability-oriented limits, the \texttt{with\_coal\_30} curves appear steeper and further out in mean-vol space, while \texttt{drop\_coal\_29} appears flatter and closer to long-window Scope 2 behavior. Fixed-origin/fixed-scale comparability versions are moved to the appendix. This reinforces the interpretation that short-window estimates (with Coal retained) are more sensitive and can overstate tangency performance relative to the longer-window no-coal specification.
 
 \subsection{From Risk-Free Inclusion to Factor and Proxy Comparisons (Tasks 4-6)}
 Start with the effect of adding the risk-free asset to industries (Task 4), then transition to FF3/FF5 frontier comparisons in excess-return space (Task 5), and finally FF-vs-proxy implementation differences (Task 6).
@@ -238,6 +244,34 @@ Start with the effect of adding the risk-free asset to industries (Task 4), then
   \item Task 5 anchor point: in the current results, FF5 tangency Sharpe is close to industry tangency Sharpe, while FF3 is lower.
   \item Task 6 anchor point: proxy differences should be interpreted as investability/exposure translation gaps, not only as optimization noise.
 \end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{report_scope4.png}{Placeholder: Task 4 industries with risk-free}
+  \caption{Task 4: industries with risk-free asset (report framing).}
+  \label{fig:task4_frontier}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{report_scope5.png}{Placeholder: Task 5 industries vs FF3 vs FF5}
+  \caption{Task 5: industries, FF3, and FF5 in excess-return space (report framing).}
+  \label{fig:task5_frontier}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{report_scope6_panels.png}{Placeholder: Task 6 FF vs proxy panels}
+  \caption{Task 6 (primary): FF vs proxy two-panel comparison (report framing).}
+  \label{fig:task6_panels}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{report_scope6_overlay.png}{Placeholder: Task 6 FF vs proxy overlay}
+  \caption{Task 6 (supplementary): FF vs proxy overlay (report framing).}
+  \label{fig:task6_overlay}
+\end{figure}
 
 \paragraph{Task 4 draft narrative.}
 Including the risk-free asset changes the efficient set from the risky-only branch to the CML-tangency representation. In practical terms, the investment decision becomes a leverage/deleverage choice around the tangency portfolio rather than movement along the full risky frontier.
@@ -273,6 +307,12 @@ For Task 8, the preferred extension is a constrained tangency specification (or 
 
 \IfFileExists{tables/task23_gmv_final.tex}{\input{tables/task23_gmv_final.tex}}{}
 \IfFileExists{tables/task23_tan_final.tex}{\input{tables/task23_tan_final.tex}}{}
+\IfFileExists{tables/scope2_presentation.tex}{\input{tables/scope2_presentation.tex}}{}
+\IfFileExists{tables/scope3_comparison_presentation.tex}{\input{tables/scope3_comparison_presentation.tex}}{}
+\IfFileExists{tables/scope3_window_summary.tex}{\input{tables/scope3_window_summary.tex}}{}
+\IfFileExists{tables/scope5_presentation.tex}{\input{tables/scope5_presentation.tex}}{}
+\IfFileExists{tables/scope6_pairwise_presentation.tex}{\input{tables/scope6_pairwise_presentation.tex}}{}
+\IfFileExists{tables/scope7_decision_presentation.tex}{\input{tables/scope7_decision_presentation.tex}}{}
 
 \section{Discussion}
 The main cross-task pattern is that estimator and sample-design choices materially affect frontier location and tangency composition, while broad ranking conclusions are often more stable than raw weights. This is most visible when moving from industries to stocks and when changing overlap windows.
@@ -305,7 +345,55 @@ The final version should end with one explicit allocation recommendation and one
 Put formulas, estimator details, and implementation specifics here.
 
 \section{Appendix B: Supplementary Tables/Figures}
-Park robustness checks and extra outputs here.
+Fixed-origin/fixed-scale comparability figures used for strict cross-figure checks:
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope2_anchored_origin_common_limits.png}{Placeholder: Scope 2 anchored-origin common-limits comparability}
+  \caption{Scope 2 appendix comparability plot (fixed-origin framing).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope3_with_coal_anchored_origin_common_limits.png}{Placeholder: Scope 3 with-coal anchored-origin common-limits comparability}
+  \caption{Scope 3 (\texttt{with\_coal\_30}) appendix comparability plot (fixed-origin framing).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope3_with_coal_anchored_origin_non_common_limits.png}{Placeholder: Scope 3 with-coal anchored-origin non-common limits}
+  \caption{Scope 3 (\texttt{with\_coal\_30}) appendix exception plot (anchored origin, non-common limits).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope3_drop_coal_anchored_origin_common_limits.png}{Placeholder: Scope 3 no-coal anchored-origin common-limits comparability}
+  \caption{Scope 3 (\texttt{drop\_coal\_29}) appendix comparability plot (fixed-origin framing).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope5_anchored_origin_common_limits.png}{Placeholder: Scope 5 anchored-origin common-limits comparability}
+  \caption{Scope 5 appendix comparability plot (fixed-origin framing).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope6_overlay_anchored_origin_common_limits.png}{Placeholder: Scope 6 overlay anchored-origin common-limits comparability}
+  \caption{Scope 6 overlay appendix comparability plot (fixed-origin framing).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope6_panels_anchored_origin_common_limits.png}{Placeholder: Scope 6 panels anchored-origin common-limits comparability}
+  \caption{Scope 6 two-panel appendix comparability plot (fixed-origin framing).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \reportfigorplaceholder{appendix_scope6_ff3_anchored_origin_non_common_limits.png}{Placeholder: Scope 6 FF3 anchored-origin non-common limits}
+  \caption{Scope 6 appendix exception plot for FF3 instability (anchored origin, non-common limits).}
+\end{figure}
 
 \section{Appendix C: Contribution Statement}
 Mirror required submission-form contribution details.
