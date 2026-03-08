@@ -254,6 +254,105 @@ def _compute_xmax(
     raise ValueError("x_mode must be one of: 'frontier', 'tangency', 'max'")
 
 
+def _ranked_tangency_limit(
+    tangency_points: list[dict[str, float]],
+    *,
+    limit_mult: float = 1.2,
+    rank: int = 1,
+) -> float | None:
+    """Return `limit_mult *` the ranked tangency volatility (1=largest)."""
+    vols = sorted(
+        (
+            float(p["vol"])
+            for p in tangency_points
+            if p is not None and np.isfinite(float(p.get("vol", np.nan)))
+        ),
+        reverse=True,
+    )
+    if len(vols) == 0:
+        return None
+    idx = min(max(1, int(rank)) - 1, len(vols) - 1)
+    return float(limit_mult) * vols[idx]
+
+
+def _ranked_tangency_point(
+    tangency_points: list[dict[str, float]],
+    *,
+    rank: int = 1,
+) -> dict[str, float] | None:
+    """Return the ranked tangency point by volatility (1=largest)."""
+    ordered = sorted(
+        (
+            {"vol": float(p["vol"]), "mean": float(p["mean"])}
+            for p in tangency_points
+            if p is not None
+            and np.isfinite(float(p.get("vol", np.nan)))
+            and np.isfinite(float(p.get("mean", np.nan)))
+        ),
+        key=lambda p: p["vol"],
+        reverse=True,
+    )
+    if len(ordered) == 0:
+        return None
+    idx = min(max(1, int(rank)) - 1, len(ordered) - 1)
+    return ordered[idx]
+
+
+def _gmv_lower_limits(gmv_points: list[dict[str, float]]) -> tuple[float | None, float | None]:
+    """Return lower bounds from the minimum GMV vol and minimum GMV mean."""
+    vols = [float(p["vol"]) for p in gmv_points if p is not None and np.isfinite(float(p.get("vol", np.nan)))]
+    means = [float(p["mean"]) for p in gmv_points if p is not None and np.isfinite(float(p.get("mean", np.nan)))]
+    x_min = min(vols) if len(vols) > 0 else None
+    y_min = min(means) if len(means) > 0 else None
+    return x_min, y_min
+
+
+def _apply_ymin(ax, y_min: float | None) -> None:
+    """Keep the current upper limit but enforce a lower y bound when provided."""
+    if y_min is None or not np.isfinite(float(y_min)):
+        return
+    _, current_ymax = ax.get_ylim()
+    if current_ymax <= float(y_min):
+        current_ymax = float(y_min) + 1e-6
+    ax.set_ylim(float(y_min), current_ymax)
+
+
+def _apply_visible_ymax(ax, *, pad_frac: float = 0.08) -> None:
+    """Set y max from data visible inside the current x window."""
+    x_lo, x_hi = ax.get_xlim()
+    y_lo, y_hi_current = ax.get_ylim()
+    visible_y: list[float] = []
+
+    for line in ax.get_lines():
+        xs = np.asarray(line.get_xdata(), dtype=float)
+        ys = np.asarray(line.get_ydata(), dtype=float)
+        mask = np.isfinite(xs) & np.isfinite(ys) & (xs >= x_lo) & (xs <= x_hi)
+        if np.any(mask):
+            visible_y.extend(ys[mask].tolist())
+
+    for coll in ax.collections:
+        offsets = getattr(coll, "get_offsets", lambda: np.empty((0, 2)))()
+        offsets = np.asarray(offsets, dtype=float)
+        if offsets.ndim != 2 or offsets.shape[1] < 2:
+            continue
+        xs = offsets[:, 0]
+        ys = offsets[:, 1]
+        mask = np.isfinite(xs) & np.isfinite(ys) & (xs >= x_lo) & (xs <= x_hi)
+        if np.any(mask):
+            visible_y.extend(ys[mask].tolist())
+
+    if len(visible_y) == 0:
+        return
+
+    y_hi = float(max(visible_y))
+    span = max(y_hi - y_lo, 1e-9)
+    y_max = y_hi + pad_frac * span
+    if y_max <= y_lo:
+        y_max = y_lo + 1e-6
+    if y_max < y_hi_current:
+        ax.set_ylim(y_lo, y_max)
+
+
 def _compute_ymax(
     curves: dict,
     points: dict,
@@ -335,15 +434,14 @@ def plot_scope2_overlay(
         x_pts.extend([float(points[label]["gmv"]["vol"]), float(points[label]["tan"]["vol"])])
         y_pts.extend([float(points[label]["gmv"]["mean"]), float(points[label]["tan"]["mean"])])
 
-    if ylim is None and anchor_origin:
-        y_cap = float(range_data.get("mu_max", _compute_ymax(
-            curves,
-            points,
-            y_mode=y_mode,
-            frontier_mult=frontier_mult,
-            tan_mult=tan_mult,
-        )))
-        ylim = (0.0, y_cap)
+    y_min = None
+    if xlim is None or ylim is None:
+        gmv_points = [points[label]["gmv"] for label in ("sample", "bs_mean", "bs_mean_cov")]
+        tan_points = [points[label]["tan"] for label in ("sample", "bs_mean", "bs_mean_cov")]
+        x_min, y_min = _gmv_lower_limits(gmv_points)
+        tan_ref = _ranked_tangency_point(tan_points, rank=1)
+        if xlim is None and x_min is not None and tan_ref is not None:
+            xlim = (x_min, 1.2 * float(tan_ref["vol"]))
     _set_axis_limits(
         ax,
         np.asarray(x_vals, dtype=float),
@@ -352,6 +450,8 @@ def plot_scope2_overlay(
         xlim=xlim,
         ylim=ylim,
     )
+    _apply_ymin(ax, 0.0 if anchor_origin else y_min)
+    _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
     if show_title is None:
         show_title = bool(PLOT_DEFAULTS["show_titles"])
@@ -364,13 +464,11 @@ def plot_scope2_overlay(
         else:
             title = "Question 2: 30-Industry MV Frontier"
         ax.set_title(title)
-    leg_lines = ax.legend(
-        handles=_scope3_estimator_handles(),
+    ax.legend(
+        handles=_scope3_estimator_handles() + _portfolio_marker_handles(),
         loc="upper left",
         fontsize=8,
     )
-    ax.add_artist(leg_lines)
-    ax.legend(handles=_portfolio_marker_handles(), loc="lower right", fontsize=8)
     _apply_report_grid(ax)
     fig.tight_layout()
     return fig
@@ -449,27 +547,18 @@ def plot_scope3_overlay(
                 color=marker_color,
                 marker=SCOPE3_PLOT_STYLE["portfolio_marker"]["TAN"],
                 s=60,
-                zorder=5,
+                zorder=6,
                 label="_nolegend_",
             )
 
-    if ylim is None and anchor_origin:
-        flat_curves = {}
-        flat_points = {}
-        for est in est_order:
-            for univ in univ_order:
-                key = f"{est}_{univ}"
-                curve = curves[est][univ]
-                flat_curves[key] = {"vols": np.asarray(curve["vols"], dtype=float), "means": np.asarray(curve["means"], dtype=float)}
-                flat_points[key] = points[est][univ]
-        y_cap = float(range_data.get("mu_max", _compute_ymax(
-            flat_curves,
-            flat_points,
-            y_mode=y_mode,
-            frontier_mult=frontier_mult,
-            tan_mult=tan_mult,
-        )))
-        ylim = (0.0, y_cap)
+    y_min = None
+    if xlim is None or ylim is None:
+        gmv_points = [points[est][univ]["gmv"] for est in est_order for univ in univ_order]
+        tan_points = [points[est][univ]["tan"] for est in est_order for univ in univ_order]
+        x_min, y_min = _gmv_lower_limits(gmv_points)
+        tan_ref = _ranked_tangency_point(tan_points, rank=2)
+        if xlim is None and x_min is not None and tan_ref is not None:
+            xlim = (x_min, 1.2 * float(tan_ref["vol"]))
     _set_axis_limits(
         ax,
         np.asarray(x_vals, dtype=float),
@@ -478,6 +567,8 @@ def plot_scope3_overlay(
         xlim=xlim,
         ylim=ylim,
     )
+    _apply_ymin(ax, 0.0 if anchor_origin else y_min)
+    _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
     if show_title is None:
         show_title = bool(PLOT_DEFAULTS["show_titles"])
@@ -500,16 +591,11 @@ def plot_scope3_overlay(
 
     n_ind = meta.get("n_assets_industry") if meta else None
     n_stk = meta.get("n_assets_stock") if meta else None
-    leg_colors = ax.legend(handles=_scope3_universe_handles(n_ind, n_stk), loc="upper left", fontsize=8)
-    ax.add_artist(leg_colors)
-    leg_lines = ax.legend(
-        handles=_scope3_estimator_handles(),
-        loc="center right",
-        bbox_to_anchor=(1.0, 0.36),
+    ax.legend(
+        handles=_scope3_universe_handles(n_ind, n_stk) + _scope3_estimator_handles() + _portfolio_marker_handles(),
+        loc="upper left",
         fontsize=8,
     )
-    ax.add_artist(leg_lines)
-    ax.legend(handles=_portfolio_marker_handles(), loc="lower right", fontsize=8)
     _apply_report_grid(ax)
     fig.tight_layout()
     return fig
@@ -598,37 +684,31 @@ def plot_scope3_panels(
                     color=marker_color,
                     marker=SCOPE3_PLOT_STYLE["portfolio_marker"]["TAN"],
                     s=60,
-                    zorder=5,
+                    zorder=6,
                     label="_nolegend_",
                 )
 
+        local_xlim = xlim
         local_ylim = ylim
-        if local_ylim is None and anchor_origin:
-            flat_curves = {}
-            flat_points = {}
-            for est in est_order:
-                for univ in univ_order:
-                    key = f"{est}_{univ}"
-                    curve = curves[est][univ]
-                    flat_curves[key] = {"vols": np.asarray(curve["vols"], dtype=float), "means": np.asarray(curve["means"], dtype=float)}
-                    flat_points[key] = points[est][univ]
-            y_cap = float(range_data.get("mu_max", _compute_ymax(
-                flat_curves,
-                flat_points,
-                y_mode=y_mode,
-                frontier_mult=frontier_mult,
-                tan_mult=tan_mult,
-            )))
-            local_ylim = (0.0, y_cap)
+        local_ymin = None
+        if local_xlim is None or local_ylim is None:
+            gmv_points = [points[est][univ]["gmv"] for est in est_order for univ in univ_order]
+            tan_points = [points[est][univ]["tan"] for est in est_order for univ in univ_order]
+            x_min, local_ymin = _gmv_lower_limits(gmv_points)
+            tan_ref = _ranked_tangency_point(tan_points, rank=2)
+            if local_xlim is None and x_min is not None and tan_ref is not None:
+                local_xlim = (x_min, 1.2 * float(tan_ref["vol"]))
 
         _set_axis_limits(
             ax,
             np.asarray(x_vals, dtype=float),
             np.asarray(y_vals, dtype=float),
             anchor_origin=anchor_origin,
-            xlim=xlim,
+            xlim=local_xlim,
             ylim=local_ylim,
         )
+        _apply_ymin(ax, 0.0 if anchor_origin else local_ymin)
+        _apply_visible_ymax(ax)
 
         _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
         if show_title:
@@ -637,16 +717,11 @@ def plot_scope3_panels(
         panel_meta = scope3_result.get("inputs", {})
         n_ind = panel_meta.get("n_assets_industry")
         n_stk = panel_meta.get("n_assets_stock")
-        leg_colors = ax.legend(handles=_scope3_universe_handles(n_ind, n_stk), loc="upper left", fontsize=8)
-        ax.add_artist(leg_colors)
-        leg_lines = ax.legend(
-            handles=_scope3_estimator_handles(),
-            loc="center right",
-            bbox_to_anchor=(1.0, 0.36),
+        ax.legend(
+            handles=_scope3_universe_handles(n_ind, n_stk) + _scope3_estimator_handles() + marker_handles,
+            loc="upper left",
             fontsize=8,
         )
-        ax.add_artist(leg_lines)
-        ax.legend(handles=marker_handles, loc="lower right", fontsize=8)
         _apply_report_grid(ax)
 
     _draw_scope3_axis(axes[0], scope3_with_coal_result, with_title)
@@ -706,12 +781,13 @@ def plot_scope5_overlay(
         x_pts.extend([float(points[key]["gmv"]["vol"]), float(points[key]["tan"]["vol"])])
         y_pts.extend([float(points[key]["gmv"]["mean"]), float(points[key]["tan"]["mean"])])
 
-    if xlim is None:
-        # Scope 5 framing policy: cap x-axis at 1.2 * industry tangency volatility.
-        xlim = (0.0, 1.2 * float(points["industries"]["tan"]["vol"]))
-    if anchor_origin and ylim is None:
-        y_cap = float(range_data.get("mu_max", max(curves[k]["means"].max() for k in curves.keys())))
-        ylim = (0.0, y_cap)
+    y_min = 0.0 if anchor_origin else None
+    if xlim is None or ylim is None:
+        tan_points = [points[key]["tan"] for key in ("industries", "ff3", "ff5")]
+        tan_ref = _ranked_tangency_point(tan_points, rank=1)
+        x_max = 1.2 * float(tan_ref["vol"]) if tan_ref is not None else None
+        if xlim is None and x_max is not None:
+            xlim = (0.0, x_max)
     _set_axis_limits(
         ax,
         np.asarray(x_vals, dtype=float),
@@ -720,6 +796,8 @@ def plot_scope5_overlay(
         xlim=xlim,
         ylim=ylim,
     )
+    _apply_ymin(ax, y_min)
+    _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly, excess)", "Expected excess return (monthly)")
     if show_title is None:
         show_title = bool(PLOT_DEFAULTS["show_titles"])
@@ -731,9 +809,11 @@ def plot_scope5_overlay(
             )
         else:
             ax.set_title("Question 5: Industries vs FF3 vs FF5")
-    leg_colors = ax.legend(handles=_scope5_universe_handles(), loc="upper left", fontsize=8)
-    ax.add_artist(leg_colors)
-    ax.legend(handles=_portfolio_marker_handles(), loc="lower right", fontsize=8)
+    ax.legend(
+        handles=_scope5_universe_handles() + _portfolio_marker_handles(),
+        loc="upper left",
+        fontsize=8,
+    )
     _apply_report_grid(ax)
     fig.tight_layout()
     return fig
@@ -778,6 +858,7 @@ def plot_scope4_with_rf(
 
     rf_mean = float(meta.get("rf_mean", 0.0))
     ax.axhline(rf_mean, color="gray", linestyle=":", alpha=0.85, label=f"Risk-free ({rf_mean:.2%})")
+    ax.scatter([0.0], [rf_mean], color="gray", marker="s", s=45, zorder=6, label="_nolegend_")
 
     x_vals = np.concatenate(
         [
@@ -795,6 +876,12 @@ def plot_scope4_with_rf(
     )
     x_pts = np.asarray([points["gmv"]["vol"], points["tan"]["vol"]], dtype=float)
     y_pts = np.asarray([points["gmv"]["mean"], points["tan"]["mean"], rf_mean], dtype=float)
+    y_min = 0.0
+    if xlim is None or ylim is None:
+        tan_ref = _ranked_tangency_point([points["tan"]], rank=1)
+        x_max = 1.2 * float(tan_ref["vol"]) if tan_ref is not None else None
+        if xlim is None and x_max is not None:
+            xlim = (0.0, x_max)
     if anchor_origin:
         x_cap = float(range_data.get("x_max", max(float(curve["vols"].max()), float(cml["vols"].max()))))
         y_cap = float(range_data.get("mu_max", max(float(curve["means"].max()), float(cml["means"].max()))))
@@ -808,6 +895,8 @@ def plot_scope4_with_rf(
         xlim=xlim,
         ylim=ylim,
     )
+    _apply_ymin(ax, y_min)
+    _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
     if show_title is None:
         show_title = bool(PLOT_DEFAULTS["show_titles"])
@@ -819,9 +908,14 @@ def plot_scope4_with_rf(
             )
         else:
             ax.set_title("Question 4: 30 Industries + Risk-Free")
-    leg1 = ax.legend(loc="upper left", fontsize=8)
-    ax.add_artist(leg1)
-    ax.legend(handles=_portfolio_marker_handles(), loc="lower right", fontsize=8)
+    line_handles, line_labels = ax.get_legend_handles_labels()
+    rf_handles = []
+    rf_labels = []
+    for handle, label in zip(line_handles, line_labels):
+        if label != "_nolegend_":
+            rf_handles.append(handle)
+            rf_labels.append(label)
+    ax.legend(handles=rf_handles + _portfolio_marker_handles(), loc="upper left", fontsize=8)
     _apply_report_grid(ax)
     fig.tight_layout()
     return fig
@@ -829,8 +923,8 @@ def plot_scope4_with_rf(
 
 def plot_scope6_panels(
     scope6_result: dict,
-    limit_basis: str = "ff5",
-    tan_vol_rank: int = 1,
+    limit_basis: str = "tangency_vol_rank",
+    tan_vol_rank: int = 2,
     limit_mult: float = 1.2,
     efficient_frontier_only: bool = True,
     figsize: tuple[float, float] | None = None,
@@ -896,9 +990,7 @@ def plot_scope6_panels(
         ax.set_title("Scope 6: FF3 vs Proxy-3")
     _apply_report_grid(ax)
     panel1_lines, panel1_markers = scope6_panel_legend_handles("ff3")
-    leg_lines = ax.legend(handles=panel1_lines, loc="upper left", fontsize=8)
-    ax.add_artist(leg_lines)
-    ax.legend(handles=panel1_markers, loc="lower right", fontsize=8)
+    ax.legend(handles=panel1_lines + panel1_markers, loc="upper left", fontsize=8)
 
     # Right: FF5 vs Proxy-5
     ax = axes[1]
@@ -933,40 +1025,30 @@ def plot_scope6_panels(
         ax.set_title("Scope 6: FF5 vs Proxy-5")
     _apply_report_grid(ax)
     panel2_lines, panel2_markers = scope6_panel_legend_handles("ff5")
-    leg_lines = ax.legend(handles=panel2_lines, loc="upper left", fontsize=8)
-    ax.add_artist(leg_lines)
-    ax.legend(handles=panel2_markers, loc="lower right", fontsize=8)
+    ax.legend(handles=panel2_lines + panel2_markers, loc="upper left", fontsize=8)
 
     if limit_basis == "ff5":
         # Practical FF5 framing for report readability:
         # scale exactly from FF5 tangency point (not proxy, not frontier tails).
-        x_max = float(limit_mult) * float(points["ff5"]["tan"]["vol"])
-        y_max = float(limit_mult) * float(points["ff5"]["tan"]["mean"])
+        ref_point = points["ff5"]["tan"]
+        x_max = float(limit_mult) * float(ref_point["vol"])
     elif limit_basis == "workflow":
         x_max = float(range_data.get("x_max", 0.0))
-        y_max = float(range_data.get("mu_max", 0.0))
     elif limit_basis == "tangency_vol_rank":
-        tan_points = sorted(
-            [
-                (float(points["ff3"]["tan"]["vol"]), float(points["ff3"]["tan"]["mean"]), "ff3"),
-                (float(points["proxy3"]["tan"]["vol"]), float(points["proxy3"]["tan"]["mean"]), "proxy3"),
-                (float(points["ff5"]["tan"]["vol"]), float(points["ff5"]["tan"]["mean"]), "ff5"),
-                (float(points["proxy5"]["tan"]["vol"]), float(points["proxy5"]["tan"]["mean"]), "proxy5"),
-            ],
-            key=lambda t: t[0],
-            reverse=True,
+        ref_point = _ranked_tangency_point(
+            [points["ff3"]["tan"], points["proxy3"]["tan"], points["ff5"]["tan"], points["proxy5"]["tan"]],
+            rank=tan_vol_rank,
         )
-        rank = max(1, int(tan_vol_rank))
-        idx = min(rank - 1, len(tan_points) - 1)
-        x_max, y_max, _ = tan_points[idx]
-        x_max *= float(limit_mult)
-        y_max *= float(limit_mult)
+        x_max = float(limit_mult) * float(ref_point["vol"]) if ref_point is not None else 0.0
     else:
         raise ValueError("limit_basis must be one of {'ff5', 'workflow', 'tangency_vol_rank'}")
 
     # Respect limit_basis-driven limits unless user explicitly overrides with xlim/ylim.
-    default_xlim = xlim if xlim is not None else ((0.0, x_max) if x_max > 0 else None)
-    default_ylim = ylim if ylim is not None else ((0.0, y_max) if y_max > 0 else None)
+    gmv_points = [points["ff3"]["gmv"], points["proxy3"]["gmv"], points["ff5"]["gmv"], points["proxy5"]["gmv"]]
+    x_min = 0.0
+    y_min = 0.0
+    default_xlim = xlim if xlim is not None else ((x_min, x_max) if x_max > x_min else None)
+    default_ylim = ylim
     for i, ax in enumerate(axes):
         x_line_vals = []
         y_line_vals = []
@@ -990,6 +1072,8 @@ def plot_scope6_panels(
             xlim=default_xlim,
             ylim=default_ylim,
         )
+        _apply_ymin(ax, y_min)
+        _apply_visible_ymax(ax)
 
     if show_title and meta:
         title = f"Question 6: FF Factors vs Practical Proxies ({meta.get('start', '')} to {meta.get('end', '')})"
@@ -1002,8 +1086,8 @@ def plot_scope6_panels(
 
 def plot_scope6_overlay(
     scope6_result: dict,
-    limit_basis: str = "ff5",
-    tan_vol_rank: int = 1,
+    limit_basis: str = "tangency_vol_rank",
+    tan_vol_rank: int = 2,
     limit_mult: float = 1.2,
     efficient_frontier_only: bool = True,
     x_limit_basis: str | None = None,
@@ -1058,31 +1142,21 @@ def plot_scope6_overlay(
     if limit_basis == "ff5":
         # Practical FF5 framing for report readability:
         # scale exactly from FF5 tangency point (not proxy, not frontier tails).
-        x_max = float(limit_mult) * float(points["ff5"]["tan"]["vol"])
-        y_max = float(limit_mult) * float(points["ff5"]["tan"]["mean"])
+        ref_point = points["ff5"]["tan"]
+        x_max = float(limit_mult) * float(ref_point["vol"])
     elif limit_basis == "tangency_vol_rank":
-        tan_points = sorted(
-            [
-                (float(points["ff3"]["tan"]["vol"]), float(points["ff3"]["tan"]["mean"]), "ff3"),
-                (float(points["proxy3"]["tan"]["vol"]), float(points["proxy3"]["tan"]["mean"]), "proxy3"),
-                (float(points["ff5"]["tan"]["vol"]), float(points["ff5"]["tan"]["mean"]), "ff5"),
-                (float(points["proxy5"]["tan"]["vol"]), float(points["proxy5"]["tan"]["mean"]), "proxy5"),
-            ],
-            key=lambda t: t[0],
-            reverse=True,
+        ref_point = _ranked_tangency_point(
+            [points["ff3"]["tan"], points["proxy3"]["tan"], points["ff5"]["tan"], points["proxy5"]["tan"]],
+            rank=tan_vol_rank,
         )
-        rank = max(1, int(tan_vol_rank))
-        idx = min(rank - 1, len(tan_points) - 1)
-        x_max, y_max, _ = tan_points[idx]
-        x_max *= float(limit_mult)
-        y_max *= float(limit_mult)
+        x_max = float(limit_mult) * float(ref_point["vol"]) if ref_point is not None else 0.0
     else:
         raise ValueError("limit_basis must be one of {'ff5', 'tangency_vol_rank'}")
     # Respect limit_basis-driven limits unless user explicitly overrides with xlim/ylim.
-    if xlim is None and x_max > 0:
-        xlim = (0.0, x_max)
-    if ylim is None and y_max > 0:
-        ylim = (0.0, y_max)
+    x_min = 0.0
+    y_min = 0.0
+    if xlim is None and x_min is not None and x_max > x_min:
+        xlim = (x_min, x_max)
     line_x = []
     line_y = []
     point_x = []
@@ -1101,6 +1175,8 @@ def plot_scope6_overlay(
         xlim=xlim,
         ylim=ylim,
     )
+    _apply_ymin(ax, y_min)
+    _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly, excess)", "Expected excess return (monthly)")
     if show_title is None:
         show_title = bool(PLOT_DEFAULTS["show_titles"])
@@ -1114,9 +1190,7 @@ def plot_scope6_overlay(
             ax.set_title("Question 6: FF Factors vs Practical Proxies")
     _apply_report_grid(ax)
     scope6_lines, scope6_markers = scope6_legend_handles()
-    leg_colors = ax.legend(handles=scope6_lines, loc="upper left", fontsize=8)
-    ax.add_artist(leg_colors)
-    ax.legend(handles=scope6_markers, loc="lower right", fontsize=8)
+    ax.legend(handles=scope6_lines + scope6_markers, loc="upper left", fontsize=8)
     fig.tight_layout()
     return fig
 
@@ -1125,8 +1199,9 @@ def plot_scope8_proxy_panels(
     scope8_proxy_result: dict,
     constraint_label: str = "w_i>=0.00",
     include_ff3_unconstrained_tan: bool = False,
-    limit_basis: str = "ff5_tan",
+    limit_basis: str = "tangency_vol_rank",
     limit_mult: float = 1.1,
+    tan_vol_rank: int = 2,
     efficient_frontier_only: bool = True,
     figsize: tuple[float, float] | None = None,
     panel_layout: str | None = None,
@@ -1226,6 +1301,7 @@ def plot_scope8_proxy_panels(
                 s=70,
                 color=series_colors[lhs],
                 edgecolor="none",
+                zorder=6,
                 label=f"{lhs.upper()} TAN",
             )
         ax.scatter(
@@ -1236,6 +1312,7 @@ def plot_scope8_proxy_panels(
             facecolors="none",
             edgecolors=series_colors[rhs],
             linewidths=1.2,
+            zorder=6,
             label=f"{rhs.upper()} TAN",
         )
 
@@ -1249,6 +1326,7 @@ def plot_scope8_proxy_panels(
                 marker="X",
                 s=70,
                 color=series_colors[lhs],
+                zorder=7,
                 label=f"{lhs.upper()} TAN ({constraint_label})",
             )
         if cp_r is not None:
@@ -1261,7 +1339,7 @@ def plot_scope8_proxy_panels(
                 color=cp_color,
                 edgecolor="white",
                 linewidths=0.6,
-                zorder=4,
+                zorder=7,
                 label=f"{rhs.upper()} TAN ({constraint_label})",
             )
 
@@ -1269,7 +1347,7 @@ def plot_scope8_proxy_panels(
         if show_title:
             ax.set_title(title)
         _apply_report_grid(ax)
-        ax.legend(loc="upper left", fontsize=8)
+        ax.legend(loc="upper left", fontsize=7)
 
     if limit_basis == "ff5_proxy5":
         x_candidates = []
@@ -1294,28 +1372,39 @@ def plot_scope8_proxy_panels(
                     y_candidates.append(float(np.nanmax(cc_means)))
 
         x_max = max(x_candidates) * float(limit_mult) if x_candidates else None
-        y_max = max(y_candidates) * float(limit_mult) if y_candidates else None
         for ax in axes:
             if x_max is not None and np.isfinite(x_max):
                 ax.set_xlim(0, x_max)
-            if y_max is not None and np.isfinite(y_max):
-                ax.set_ylim(0, y_max)
+            _apply_ymin(ax, 0.0)
+            _apply_visible_ymax(ax)
     elif limit_basis == "ff5_tan":
         # Scope 6-like framing: scale from FF5 tangency location.
         ff5_tan = points["ff5"]["tan"]
         x_max = float(ff5_tan["vol"]) * float(limit_mult)
-        y_max = float(ff5_tan["mean"]) * float(limit_mult)
+        x_min, y_min = (0.0, 0.0)
         for ax in axes:
-            ax.set_xlim(0, x_max)
-            ax.set_ylim(0, y_max)
+            ax.set_xlim(x_min if x_min is not None else 0.0, x_max)
+            _apply_ymin(ax, y_min if y_min is not None else 0.0)
+            _apply_visible_ymax(ax)
+    elif limit_basis == "tangency_vol_rank":
+        tan_points = [points[key]["tan"] for key in ("ff3", "proxy3", "ff5", "proxy5")]
+        x_min, y_min = (0.0, 0.0)
+        ref_point = _ranked_tangency_point(tan_points, rank=tan_vol_rank)
+        x_max = float(limit_mult) * float(ref_point["vol"]) if ref_point is not None else 0.0
+        for ax in axes:
+            ax.set_xlim(x_min if x_min is not None else 0.0, x_max)
+            _apply_ymin(ax, y_min if y_min is not None else 0.0)
+            _apply_visible_ymax(ax)
     else:
-        raise ValueError("limit_basis must be one of {'ff5_proxy5', 'ff5_tan'}")
+        raise ValueError("limit_basis must be one of {'ff5_proxy5', 'ff5_tan', 'tangency_vol_rank'}")
 
     if show_title and meta:
-        fig.suptitle(
-            "Question 8: Constrained Frontier Extension "
-            f"({meta.get('is_start', '')} to {meta.get('oos_end', '')})"
-        )
+        start = meta.get("is_start") or meta.get("start")
+        end = meta.get("oos_end") or meta.get("end")
+        if start and end:
+            fig.suptitle(f"Question 8: Constrained Frontier Extension ({start} to {end})")
+        else:
+            fig.suptitle("Question 8: Constrained Frontier Extension")
     fig.tight_layout()
     return fig
 
@@ -1389,17 +1478,17 @@ def plot_scope8_2_is_oos_panels(
             ax.plot(ccv, ccm, color=color_oos, linestyle=":", linewidth=1.8, label=f"OOS constrained ({constraint_label})")
 
         # IS/OOS optimal points
-        ax.scatter(pts["is_opt"]["gmv"]["vol"], pts["is_opt"]["gmv"]["mean"], marker="o", s=55, color=color_is, label="IS GMV(opt)")
-        ax.scatter(pts["is_opt"]["tan"]["vol"], pts["is_opt"]["tan"]["mean"], marker="*", s=70, color=color_is, label="IS TAN(opt)")
-        ax.scatter(pts["oos_opt"]["gmv"]["vol"], pts["oos_opt"]["gmv"]["mean"], marker="o", s=55, facecolors="none", edgecolors=color_oos, linewidths=1.2, label="OOS GMV(opt)")
-        ax.scatter(pts["oos_opt"]["tan"]["vol"], pts["oos_opt"]["tan"]["mean"], marker="*", s=70, facecolors="none", edgecolors=color_oos, linewidths=1.2, label="OOS TAN(opt)")
+        ax.scatter(pts["is_opt"]["gmv"]["vol"], pts["is_opt"]["gmv"]["mean"], marker="o", s=55, color=color_is, zorder=5, label="IS GMV(opt)")
+        ax.scatter(pts["is_opt"]["tan"]["vol"], pts["is_opt"]["tan"]["mean"], marker="*", s=70, color=color_is, zorder=6, label="IS TAN(opt)")
+        ax.scatter(pts["oos_opt"]["gmv"]["vol"], pts["oos_opt"]["gmv"]["mean"], marker="o", s=55, facecolors="none", edgecolors=color_oos, linewidths=1.2, zorder=5, label="OOS GMV(opt)")
+        ax.scatter(pts["oos_opt"]["tan"]["vol"], pts["oos_opt"]["tan"]["mean"], marker="*", s=70, facecolors="none", edgecolors=color_oos, linewidths=1.2, zorder=6, label="OOS TAN(opt)")
 
         # IS-selected portfolios in IS and OOS
         for label, m in [("unconstrained", "x"), (constraint_label, "X")]:
             p_is = pts["is_selected_on_is"].get(label)
             p_oos = pts["is_selected_on_oos"].get(label)
             if p_is is not None:
-                ax.scatter(p_is["vol"], p_is["mean"], marker=m, s=65, color=color_c, label=f"IS sel on IS ({label})")
+                ax.scatter(p_is["vol"], p_is["mean"], marker=m, s=65, color=color_c, zorder=7, label=f"IS sel on IS ({label})")
             if p_oos is not None:
                 ax.scatter(
                     p_oos["vol"],
@@ -1408,6 +1497,7 @@ def plot_scope8_2_is_oos_panels(
                     s=65,
                     color=color_c,
                     alpha=0.8,
+                    zorder=7,
                     label=f"IS sel on OOS ({label})",
                 )
 
@@ -1453,10 +1543,10 @@ def plot_scope8_2_is_oos_panels(
                 if len(ccm) > 0:
                     y_candidates.append(float(np.nanmax(ccm)))
         x_max = max(x_candidates) * float(limit_mult)
-        y_max = max(y_candidates) * float(limit_mult)
         for ax in axes:
             ax.set_xlim(0, x_max)
-            ax.set_ylim(0, y_max)
+            _apply_ymin(ax, 0.0)
+            _apply_visible_ymax(ax)
     elif limit_basis != "per_panel":
         raise ValueError("limit_basis must be one of {'per_panel', 'ff5'}")
 

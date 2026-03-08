@@ -29,7 +29,7 @@ GMV_STYLE = {
 TAN_STYLE = {
     "marker": "*",
     "s": 95,
-    "zorder": 5,
+    "zorder": 6,
 }
 
 # --- Single series palette (no scope: one dict, series key is enough) ---
