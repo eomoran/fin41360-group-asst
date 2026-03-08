@@ -15,6 +15,13 @@ from typing import Mapping, Any
 import pandas as pd
 
 from .config import PROJECT_ROOT
+from .report_tables import (
+    build_scope2_table,
+    build_scope3_tables,
+    build_scope5_table,
+    build_scope6_pairwise_table,
+    build_scope7_decision_table,
+)
 
 
 def _report_dir() -> Path:
@@ -121,7 +128,7 @@ def save_table(
     tex_path = tex_target if overwrite else _versioned_path(tex_target)
 
     df.to_csv(csv_path, index=index)
-    latex = df.to_latex(index=index, float_format=float_format.__mod__, escape=False)
+    latex = df.to_latex(index=index, float_format=float_format.__mod__, escape=True)
     tex_path.write_text(latex)
     return {"csv": csv_path, "tex": tex_path}
 
@@ -180,3 +187,78 @@ def write_scope3_mapping_note(
     ]
     target.write_text("\n".join(lines) + "\n")
     return target
+
+
+def save_scope_presentation_tables(
+    *,
+    scope2_result: Mapping[str, Any] | None = None,
+    scope3_sensitivity_result: Mapping[str, Any] | None = None,
+    scope5_result: Mapping[str, Any] | None = None,
+    scope6_result: Mapping[str, Any] | None = None,
+    scope7_result: Mapping[str, Any] | None = None,
+    overwrite: bool = False,
+    index: bool = False,
+    float_format: str = "%.4f",
+    tables_dir: Path | None = None,
+) -> dict[str, dict[str, Path]]:
+    """
+    Build and save presentation-ready tables for report Scopes 2-7.
+    """
+    out: dict[str, dict[str, Path]] = {}
+
+    if scope2_result is not None:
+        out["scope2_presentation"] = save_table(
+            build_scope2_table(dict(scope2_result)),
+            "scope2_presentation",
+            overwrite=overwrite,
+            index=index,
+            float_format=float_format,
+            tables_dir=tables_dir,
+        )
+    if scope3_sensitivity_result is not None:
+        scope3_tables = build_scope3_tables(dict(scope3_sensitivity_result))
+        out["scope3_comparison_presentation"] = save_table(
+            scope3_tables["comparison"],
+            "scope3_comparison_presentation",
+            overwrite=overwrite,
+            index=index,
+            float_format=float_format,
+            tables_dir=tables_dir,
+        )
+        out["scope3_window_summary"] = save_table(
+            scope3_tables["window_summary"],
+            "scope3_window_summary",
+            overwrite=overwrite,
+            index=index,
+            float_format=float_format,
+            tables_dir=tables_dir,
+        )
+    if scope5_result is not None:
+        out["scope5_presentation"] = save_table(
+            build_scope5_table(dict(scope5_result)),
+            "scope5_presentation",
+            overwrite=overwrite,
+            index=index,
+            float_format=float_format,
+            tables_dir=tables_dir,
+        )
+    if scope6_result is not None:
+        out["scope6_pairwise_presentation"] = save_table(
+            build_scope6_pairwise_table(dict(scope6_result)),
+            "scope6_pairwise_presentation",
+            overwrite=overwrite,
+            index=index,
+            float_format=float_format,
+            tables_dir=tables_dir,
+        )
+    if scope7_result is not None:
+        out["scope7_decision_presentation"] = save_table(
+            build_scope7_decision_table(dict(scope7_result)),
+            "scope7_decision_presentation",
+            overwrite=overwrite,
+            index=index,
+            float_format=float_format,
+            tables_dir=tables_dir,
+        )
+
+    return out

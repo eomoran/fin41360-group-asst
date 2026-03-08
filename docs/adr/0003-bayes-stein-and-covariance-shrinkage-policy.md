@@ -13,8 +13,11 @@ This ADR fixes the current baseline and records when to switch methods.
 ## Decision (Implemented Now)
 
 1. Mean shrinkage target:
-- Use Jorion-style Bayes-Stein shrinkage toward the **cross-sectional grand mean**.
-- Implementation: `bayes_stein_means(mu, Sigma, T)` in `fin41360/bayes_stein.py`.
+- Use the canonical Jorion-style Bayes-Stein shrinkage factor with an explicit
+  target choice.
+- Baseline target: **cross-sectional grand mean**.
+- Alternative target retained for comparability: **GMV mean**.
+- Implementation: `bayes_stein_means(mu, Sigma, T, target=...)` in `fin41360/bayes_stein.py`.
 
 2. Covariance shrinkage:
 - Use **Ledoit-Wolf** covariance shrinkage as the Scope 2/3 default.
@@ -27,7 +30,7 @@ This ADR fixes the current baseline and records when to switch methods.
 
 ## Rationale
 
-- Cross-sectional target is transparent and consistent with current code and scope write-up.
+- Cross-sectional target remains the most transparent baseline.
 - Ledoit-Wolf gives data-driven covariance regularization without hand-picking
   `lambda` per window/universe.
 - Fixed `lambda` remains available for controlled sensitivity checks and
@@ -37,7 +40,7 @@ This ADR fixes the current baseline and records when to switch methods.
 
 1. Bayes-Stein target = GMV mean (`mu_gmv`):
 - Valid and used in some team notebooks.
-- Not current baseline; should be exposed as a parameter if we formalize dual-target runs.
+- Now supported as an explicit parameter for sensitivity checks and notebook comparability.
 
 2. Fixed covariance shrinkage (`lambda = 0.1`) baseline:
 - Previously used as baseline for deterministic reproducibility.

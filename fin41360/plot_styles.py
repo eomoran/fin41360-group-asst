@@ -15,8 +15,8 @@ FRONTIER_STYLE = {
 
 CML_STYLE = {
     "linewidth": 1.5,
-    "linestyle": (0, (2, 1)),
-    "alpha": 1.0,
+    "linestyle": "--",
+    "alpha": 0.85,
     "zorder": 2,
 }
 
@@ -27,9 +27,9 @@ GMV_STYLE = {
 }
 
 TAN_STYLE = {
-    "marker": "^",
-    "s": 60,
-    "zorder": 5,
+    "marker": "*",
+    "s": 95,
+    "zorder": 6,
 }
 
 # --- Single series palette (no scope: one dict, series key is enough) ---
@@ -43,8 +43,11 @@ SERIES = {
     "ff5": {"color": "C2", "linestyle": "-", "label": "FF5 factors"},
 }
 
-# --- Proxy variant: same colour as base series, dashed linestyle; hollow circle/triangle for gmv/tan ---
-PROXY_LINESTYLE = "--"  # same for both ff3 and ff5
+# --- Proxy variants: distinct colours (not hue-paired with FF bases) ---
+PROXY_COLORS = {
+    "ff3": "C3",
+    "ff5": "C4",
+}
 PROXY_LABELS = {"ff3": "3-factor proxy basket", "ff5": "5-factor proxy basket"}
 
 # --- Scope 3 (kept for notebook that still uses nested structure) ---
@@ -59,7 +62,7 @@ SCOPE3_PLOT_STYLE = {
         "industry": {"color": "C0", "label": "30 industries"},
         "stock": {"color": "C3", "label": "30 stocks"},
     },
-    "portfolio_marker": {"GMV": "o", "TAN": "^"},
+    "portfolio_marker": {"GMV": "o", "TAN": "*"},
 }
 
 # --- Legacy (scope4 used via style now; keep for any direct refs) ---
@@ -86,12 +89,12 @@ def style(
 
     - role: "frontier" | "cml" | "gmv" | "tan"
     - series: key into SERIES (e.g. "industries", "ff3", "sample")
-    - proxy: if True and series in ("ff3", "ff5"), apply proxy linestyle (and CML + scatter marker)
+    - proxy: if True and series in ("ff3", "ff5"), apply proxy colour variant
     - label: optional legend override (mainly for CML)
 
     Example: ax.plot(..., **style("frontier", "ff3"))
              ax.plot(..., **style("frontier", "ff3", proxy=True))   # Proxy-3
-             ax.plot(..., **style("cml", "ff3", proxy=True))       # CML with proxy linestyle
+             ax.plot(..., **style("cml", "ff3", proxy=True))       # CML with proxy colour variant
     """
     base = ROLE_BASES.get(role)
     if base is None:
@@ -101,12 +104,17 @@ def style(
         raise ValueError(f"Unknown series: {series!r}")
     out = {**base, **series_d}
 
+    # Keep CML visual semantics consistent across scopes.
+    if role == "cml":
+        out["linestyle"] = CML_STYLE["linestyle"]
+        out["alpha"] = CML_STYLE["alpha"]
+
     if proxy and series in ("ff3", "ff5"):
-        out["linestyle"] = PROXY_LINESTYLE
+        out["color"] = PROXY_COLORS[series]
         out["label"] = PROXY_LABELS[series]
         if role in ("gmv", "tan"):
-            # Same circle/triangle as non-proxy; hollow so proxy is distinguishable
-            ec = series_d.get("color", out.get("color"))
+            # Keep same marker semantics as base; hollow so proxy is distinguishable.
+            ec = out.get("color", series_d.get("color"))
             out["facecolors"] = "none"
             out["edgecolors"] = ec
             out.pop("color", None)  # avoid scatter using 'color' and overriding face/edge
@@ -121,23 +129,18 @@ def style(
 
 
 def scope6_legend_handles():
-    """Return (line_handles, marker_handles) for Scope 6 single-panel: no redundant keys.
-    Line legend: FF3, 3-factor proxy, FF5, 5-factor proxy.
-    Marker legend: GMV, TAN, 3-factor proxy basket (square), 5-factor proxy basket (square).
-    """
+    """Return (line_handles, marker_handles) for Scope 6 single-panel."""
     from matplotlib.lines import Line2D
 
     line_handles = [
         Line2D([0], [0], color=SERIES["ff3"]["color"], ls="-", label=SERIES["ff3"]["label"]),
-        Line2D([0], [0], color=SERIES["ff3"]["color"], ls=PROXY_LINESTYLE, label=PROXY_LABELS["ff3"]),
+        Line2D([0], [0], color=PROXY_COLORS["ff3"], ls="-", label=PROXY_LABELS["ff3"]),
         Line2D([0], [0], color=SERIES["ff5"]["color"], ls="-", label=SERIES["ff5"]["label"]),
-        Line2D([0], [0], color=SERIES["ff5"]["color"], ls=PROXY_LINESTYLE, label=PROXY_LABELS["ff5"]),
+        Line2D([0], [0], color=PROXY_COLORS["ff5"], ls="-", label=PROXY_LABELS["ff5"]),
     ]
     marker_handles = [
         Line2D([0], [0], marker="o", color="gray", ls="", markersize=8, label="GMV"),
-        Line2D([0], [0], marker="^", color="gray", ls="", markersize=8, label="TAN"),
-        Line2D([0], [0], marker="s", color=SERIES["ff3"]["color"], ls="", markersize=8, label=PROXY_LABELS["ff3"]),
-        Line2D([0], [0], marker="s", color=SERIES["ff5"]["color"], ls="", markersize=8, label=PROXY_LABELS["ff5"]),
+        Line2D([0], [0], marker="*", color="gray", ls="", markersize=11, label="TAN"),
     ]
     return (line_handles, marker_handles)
 
@@ -148,11 +151,10 @@ def scope6_panel_legend_handles(series: str):
 
     line_handles = [
         Line2D([0], [0], color=SERIES[series]["color"], ls="-", label=SERIES[series]["label"]),
-        Line2D([0], [0], color=SERIES[series]["color"], ls=PROXY_LINESTYLE, label=PROXY_LABELS[series]),
+        Line2D([0], [0], color=PROXY_COLORS[series], ls="-", label=PROXY_LABELS[series]),
     ]
     marker_handles = [
         Line2D([0], [0], marker="o", color="gray", ls="", markersize=8, label="GMV"),
-        Line2D([0], [0], marker="^", color="gray", ls="", markersize=8, label="TAN"),
-        Line2D([0], [0], marker="s", color=SERIES[series]["color"], ls="", markersize=8, label=PROXY_LABELS[series]),
+        Line2D([0], [0], marker="*", color="gray", ls="", markersize=11, label="TAN"),
     ]
     return (line_handles, marker_handles)

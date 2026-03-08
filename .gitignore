@@ -11,6 +11,7 @@ fin41360/__pycache__/
 
 # Virtual environments
 .venv/
+.venv*/
 venv/
 env/
 
@@ -33,3 +34,6 @@ fin41360_data/processed/
 
 # Local project cache
 .cache/
+
+# Archived report figures
+report/figures/archive*/
