@@ -42,6 +42,7 @@ from .sharpe_tests import (
 def run_scope2_industries_sample_vs_bs(
     ind_gross: pd.DataFrame,
     rf_gross: pd.Series,
+    bs_target: str = "grand_mean",
     cov_shrink: float | str = "ledoit_wolf",
     tan_return_mult: float = 1.2,
     n_points: int = 1200,
@@ -71,7 +72,7 @@ def run_scope2_industries_sample_vs_bs(
 
     mu_sample, Sigma_sample = compute_moments_from_gross(ind_aligned.values)
     T = len(ind_aligned)
-    bs = bayes_stein_means(mu_sample, Sigma_sample, T=T)
+    bs = bayes_stein_means(mu_sample, Sigma_sample, T=T, target=bs_target)
     mu_bs = bs.mu_bs
     if isinstance(cov_shrink, str):
         mode = cov_shrink.strip().lower()
@@ -154,6 +155,7 @@ def run_scope2_industries_sample_vs_bs(
         "diagnostics": {
             "bs_mean_shrinkage_intensity": bs.shrinkage_intensity,
             "bs_target_mean": bs.target_mean,
+            "bs_target_kind": bs.target_kind,
             "cov_shrink_method": cov_shrink_method,
             "cov_shrink_effective_lambda": float(cov_shrink_eff),
             "sample_cov_eig_min": float(np.min(eig_sample)),
@@ -168,6 +170,7 @@ def run_scope3_industries_vs_stocks(
     ind_gross: pd.DataFrame,
     stocks_gross: pd.DataFrame,
     rf_gross: pd.Series,
+    bs_target: str = "grand_mean",
     cov_shrink: float | str = "ledoit_wolf",
     tan_return_mult: float = 1.2,
     n_points: int = 200,
@@ -202,8 +205,8 @@ def run_scope3_industries_vs_stocks(
     mu_stk, Sigma_stk = compute_moments_from_gross(stocks_common.values)
 
     T_common = len(common_idx)
-    bs_ind = bayes_stein_means(mu_ind, Sigma_ind, T=T_common)
-    bs_stk = bayes_stein_means(mu_stk, Sigma_stk, T=T_common)
+    bs_ind = bayes_stein_means(mu_ind, Sigma_ind, T=T_common, target=bs_target)
+    bs_stk = bayes_stein_means(mu_stk, Sigma_stk, T=T_common, target=bs_target)
     if isinstance(cov_shrink, str):
         mode = cov_shrink.strip().lower()
         if mode in {"ledoit_wolf", "lw"}:
@@ -312,6 +315,9 @@ def run_scope3_industries_vs_stocks(
         "diagnostics": {
             "bs_industry_shrinkage_intensity": bs_ind.shrinkage_intensity,
             "bs_stock_shrinkage_intensity": bs_stk.shrinkage_intensity,
+            "bs_target_kind": bs_target,
+            "bs_target_mean_industry": bs_ind.target_mean,
+            "bs_target_mean_stock": bs_stk.target_mean,
             "cov_shrink_method": cov_shrink_method,
             "cov_shrink_effective_lambda_industry": float(cov_shrink_eff_ind),
             "cov_shrink_effective_lambda_stock": float(cov_shrink_eff_stk),
@@ -385,6 +391,7 @@ def run_scope3_sensitivity_with_and_without_coal(
     ind_gross: pd.DataFrame,
     stocks_gross: pd.DataFrame,
     rf_gross: pd.Series,
+    bs_target: str = "grand_mean",
     cov_shrink: float | str = "ledoit_wolf",
     tan_return_mult: float = 1.2,
     n_points: int = 200,
@@ -412,6 +419,7 @@ def run_scope3_sensitivity_with_and_without_coal(
         ind_gross=ind_gross,
         stocks_gross=stocks_gross,
         rf_gross=rf_gross,
+        bs_target=bs_target,
         cov_shrink=cov_shrink,
         tan_return_mult=tan_return_mult,
         n_points=n_points,
@@ -437,6 +445,7 @@ def run_scope3_sensitivity_with_and_without_coal(
         ind_gross=ind_no_coal,
         stocks_gross=stocks_no_coal,
         rf_gross=rf_gross,
+        bs_target=bs_target,
         cov_shrink=cov_shrink,
         tan_return_mult=tan_return_mult,
         n_points=n_points,
@@ -446,6 +455,7 @@ def run_scope3_sensitivity_with_and_without_coal(
     ind_full_scope2 = run_scope2_industries_sample_vs_bs(
         ind_gross=ind_gross,
         rf_gross=rf_gross,
+        bs_target=bs_target,
         cov_shrink=cov_shrink,
         tan_return_mult=tan_return_mult,
         n_points=n_points,
@@ -453,6 +463,7 @@ def run_scope3_sensitivity_with_and_without_coal(
     ind_short_scope2 = run_scope2_industries_sample_vs_bs(
         ind_gross=ind_gross.loc[short_start:short_end],
         rf_gross=rf_gross.loc[short_start:short_end],
+        bs_target=bs_target,
         cov_shrink=cov_shrink,
         tan_return_mult=tan_return_mult,
         n_points=n_points,
@@ -469,6 +480,7 @@ def run_scope3_sensitivity_with_and_without_coal(
                 "n_assets_stock": with_coal["inputs"]["n_assets_stock"],
                 "mean_shrinkage_intensity_industry": with_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
                 "mean_shrinkage_intensity_stock": with_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+                "mean_shrinkage_target": with_coal["diagnostics"]["bs_target_kind"],
                 "cov_shrink_method": with_coal["diagnostics"]["cov_shrink_method"],
                 "cov_shrinkage_intensity_industry": with_coal["diagnostics"]["cov_shrink_effective_lambda_industry"],
                 "cov_shrinkage_intensity_stock": with_coal["diagnostics"]["cov_shrink_effective_lambda_stock"],
@@ -482,6 +494,7 @@ def run_scope3_sensitivity_with_and_without_coal(
                 "n_assets_stock": drop_coal["inputs"]["n_assets_stock"],
                 "mean_shrinkage_intensity_industry": drop_coal["diagnostics"]["bs_industry_shrinkage_intensity"],
                 "mean_shrinkage_intensity_stock": drop_coal["diagnostics"]["bs_stock_shrinkage_intensity"],
+                "mean_shrinkage_target": drop_coal["diagnostics"]["bs_target_kind"],
                 "cov_shrink_method": drop_coal["diagnostics"]["cov_shrink_method"],
                 "cov_shrinkage_intensity_industry": drop_coal["diagnostics"]["cov_shrink_effective_lambda_industry"],
                 "cov_shrinkage_intensity_stock": drop_coal["diagnostics"]["cov_shrink_effective_lambda_stock"],
@@ -2249,6 +2262,7 @@ def run_scope8_3_shrinkage_persistence(
     ff5_excess: pd.DataFrame,
     proxy_returns: pd.DataFrame,
     rf_gross: pd.Series,
+    bs_target: str = "grand_mean",
     constraint_levels: tuple[float, ...] = (0.0, -0.25),
     end_is: str = "2002-12",
     start_oos: str = "2003-01",
@@ -2352,7 +2366,7 @@ def run_scope8_3_shrinkage_persistence(
         mu_oos_s, sigma_oos_s = compute_moments_from_net(oos_arr)
         t_is = is_arr.shape[0]
 
-        bs = bayes_stein_means(mu_is_s, sigma_is_s, T=t_is)
+        bs = bayes_stein_means(mu_is_s, sigma_is_s, T=t_is, target=bs_target)
         mu_is_bs = bs.mu_bs
         if isinstance(cov_shrink, str):
             mode = cov_shrink.strip().lower()
@@ -2381,6 +2395,7 @@ def run_scope8_3_shrinkage_persistence(
                 "asset_set": u_name,
                 "t_is": int(t_is),
                 "mu_shrinkage_intensity": float(bs.shrinkage_intensity),
+                "mu_shrinkage_target": bs.target_kind,
                 "cov_shrink_method": cov_method,
                 "cov_shrink_effective_lambda": float(cov_lambda),
             }

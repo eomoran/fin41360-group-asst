@@ -2,20 +2,11 @@
 Bayes–Stein-style shrinkage utilities for FIN41360.
 
 We implement:
-- A Jorion (1986)-style Bayes–Stein shrinkage of the mean vector towards a
-  simple target (here the cross-sectional grand mean), using the covariance
-  matrix and sample length.
+- Canonical Jorion-style Bayes-Stein shrinkage of the mean vector towards an
+  explicit target, using the sample covariance and sample length.
 - A simple covariance shrinkage towards a scalar multiple of the identity,
   with a user-chosen shrinkage intensity.
 - A Ledoit-Wolf covariance shrinkage estimator (data-driven shrinkage).
-
-EXPLAIN: There are many possible shrinkage schemes. We pick:
-- Jorion-style mean shrinkage because it directly matches the course readings
-  and explicitly trades off estimation error vs prior (grand mean).
-- A mild convex combination with an identity target for the covariance because
-  (i) our T >> N here, so only light regularisation is needed, and
-  (ii) it improves conditioning without imposing a strong structural prior
-  (such as constant correlation) that might be harder to justify empirically.
 """
 
 from __future__ import annotations
@@ -32,15 +23,17 @@ class BayesSteinResult:
     mu_bs: np.ndarray
     shrinkage_intensity: float
     target_mean: float
+    target_kind: str
 
 
 def bayes_stein_means(
     mu: np.ndarray,
     Sigma: np.ndarray,
     T: int,
+    target: str = "grand_mean",
 ) -> BayesSteinResult:
     """
-    Jorion (1986) Bayes–Stein shrinkage of the mean vector towards the grand mean.
+    Canonical Jorion-style Bayes-Stein shrinkage of the mean vector.
 
     Parameters
     ----------
@@ -50,6 +43,8 @@ def bayes_stein_means(
         Sample covariance matrix (net returns).
     T : int
         Sample length (number of time observations).
+    target : {"grand_mean", "gmv"}, default "grand_mean"
+        Shrinkage target for the prior mean.
 
     Returns
     -------
@@ -58,41 +53,50 @@ def bayes_stein_means(
 
     Notes
     -----
-    Following the spirit of Jorion (1986):
-    - Target is the cross-sectional grand mean: m_bar.
-    - Shrinkage intensity is proportional to the ratio of average variance to
-      cross-sectional dispersion of means, adjusted for T and N.
+    Uses the standard Jorion-style shrinkage factor
+    phi = (N + 2) / ((N + 2) + T * q),
+    where q = (mu - mu_target)' Sigma^{-1} (mu - mu_target).
     """
     mu = np.asarray(mu).reshape(-1)
     Sigma = np.asarray(Sigma)
     N = mu.shape[0]
+    target_kind = str(target).strip().lower()
 
     if T <= N + 2:
-        # EXPLAIN: In small samples relative to dimension, the classic
-        # Jorion formula can misbehave; in that case we skip shrinkage.
-        return BayesSteinResult(mu_bs=mu.copy(), shrinkage_intensity=0.0, target_mean=float(mu.mean()))
+        fallback_target = float(mu.mean())
+        return BayesSteinResult(
+            mu_bs=mu.copy(),
+            shrinkage_intensity=0.0,
+            target_mean=fallback_target,
+            target_kind=target_kind,
+        )
 
-    # Grand mean target
-    m_bar = float(mu.mean())
     ones = np.ones(N)
     Sigma_inv = np.linalg.pinv(Sigma)
 
-    # Cross-sectional dispersion term q = (mu - m_bar 1)' Σ^{-1} (mu - m_bar 1)
-    diff = mu - m_bar * ones
+    if target_kind == "grand_mean":
+        target_mean = float(mu.mean())
+    elif target_kind == "gmv":
+        w_gmv_unnorm = Sigma_inv @ ones
+        denom = float(ones @ w_gmv_unnorm)
+        if abs(denom) < 1e-12:
+            raise ValueError("GMV target is undefined because the normalization denominator is near zero.")
+        w_gmv = w_gmv_unnorm / denom
+        target_mean = float(mu @ w_gmv)
+    else:
+        raise ValueError("target must be one of {'grand_mean', 'gmv'}")
+
+    diff = mu - target_mean * ones
     q = float(diff @ Sigma_inv @ diff)
+    phi = float(np.clip((N + 2) / ((N + 2) + T * max(q, 0.0)), 0.0, 1.0))
 
-    # Average variance s^2 = trace(Sigma) / N
-    s2 = float(np.trace(Sigma)) / N
-
-    # Jorion-style shrinkage factor; clip to [0, 1]
-    # EXPLAIN: The (N+2)/(T - N - 2) term accounts for dimensionality vs sample size.
-    num = (N + 2) * s2
-    den = max(q, 1e-12)
-    delta = num / (den * max(T - N - 2, 1))
-    delta = float(np.clip(delta, 0.0, 1.0))
-
-    mu_bs = (1.0 - delta) * mu + delta * m_bar * ones
-    return BayesSteinResult(mu_bs=mu_bs, shrinkage_intensity=delta, target_mean=m_bar)
+    mu_bs = (1.0 - phi) * mu + phi * target_mean * ones
+    return BayesSteinResult(
+        mu_bs=mu_bs,
+        shrinkage_intensity=phi,
+        target_mean=target_mean,
+        target_kind=target_kind,
+    )
 
 
 def shrink_covariance_identity(
