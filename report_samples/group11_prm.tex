@@ -1,0 +1,820 @@
+
+\documentclass[11pt]{exam}
+\usepackage{multirow}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage[english]{babel}
+\usepackage{parskip}
+\usepackage{placeins}
+\usepackage{csquotes}
+
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+
+
+\input{Soporte/1_Preámbulo}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+\usepackage[bottom]{footmisc}
+\usepackage{hyperref}
+\lstset{
+  language=Python,
+  backgroundcolor=\color{gray!10},
+  basicstyle=\ttfamily\footnotesize,
+  frame=single,
+  rulecolor=\color{black!25},
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=4,
+  xleftmargin=0.6cm,
+  framexleftmargin=0.4cm,
+  framesep=6pt,
+  aboveskip=10pt,
+  belowskip=10pt}
+\usepackage[backend=biber,style=apa]{biblatex}
+\addbibresource{Soporte/references.bib}
+\let\citep\parencite
+\begin{document}
+\input{Soporte/2_Portada}
+% === ===
+
+\clearpage
+\thispagestyle{plain}
+
+\noindent
+\textit{We declare that all material included in this project is the result of our own work and that due acknowledgement has been given in the bibliography and references to all sources beyond, electronic or personal.}
+
+\vspace{1em}
+
+\section*{Individual contribution}
+
+\noindent
+Please outline here below the type of contribution made by each team member (e.g.\ 45\% of the coding, 20\% of the writing and gave the presentation) and, in the last column, provide an indicative figure for what percentage of the overall work it represents. This percentage will be treated as a score. Those who will score at or above 25\%, 35\%, 50\% will receive 1, 2 and 4 extra marks (before grade conversion) for their individual contribution, in recognition of their effort.
+
+\vspace{1em}
+
+\renewcommand{\arraystretch}{1.6}
+
+\begin{tabular}{|c|p{3.6cm}|p{2.8cm}|p{4.2cm}|p{3.2cm}|}
+\hline
+& \textbf{Name and surname} & \textbf{Student nr.} & \textbf{Type of contribution} & \textbf{Contribution out of 100\% (e.g.\ 25\%)} \\ \hline
+1 & Aadil Haris   & 25235473 & [INSERT INPUT HERE] & [INSERT INPUT HERE] \\[1.4cm] \hline
+2 & Eoin Moran    & 25252950 & [INSERT INPUT HERE] & [INSERT INPUT HERE] \\[1.4cm] \hline
+3 & Jasveen Kaur  & 25219948 & [Draft code for Q8 and Q9] & Not sure? maybe 5 hehe \\[1.4cm] \hline
+4 & Kevin O'Regan & 25202821 & Write-up and coding for Q2, Q4, Q5, Intro + Data and Empirical Framework Section  & 20\% \\[1.4cm] \hline
+5 & Tobias Mella  & 24273004 & Writing and coding for Q6\&9; first draft of the report up to Q6 in overleaf; data processing and generation of figures/tables; scheduled and organised meetings. & 20\% \\[1.4cm] \hline
+\end{tabular}
+
+\vspace{0.5em}
+
+\noindent
+\footnotesize{*Please make sure that the reported figures add up to 100\%}
+
+% === ===
+
+\newpage
+\tableofcontents
+\footer{}{\scriptsize{Page \thepage}}{}
+\setcounter{page}{1}
+
+% === ===
+\newpage
+\normalsize
+\section*{Introduction} 
+This report investigates the properties of equity portfolios within the mean–variance framework using data obtained from the Kenneth R. French Data Library. Using monthly value-weighted returns on 30 industry portfolios over the period January 1980 to December 2025, we construct minimum-variance efficient frontiers and identify the \textbf{Global Minimum-Variance (GMV)} and \textbf{tangency portfolios}. 
+
+\noindent To account for estimation risk inherent in sample mean–variance optimisation, we compare frontiers based on traditional sample estimates with those obtained using \textbf{Bayes–Stein shrinkage} techniques applied to expected returns and to both expected returns and the covariance matrix.
+
+\noindent The analysis proceeds in several stages. The efficient frontiers derived from the 30 industry portfolios are compared with those obtained using a set of individual stocks drawn from the same industries. This comparison highlights the role of diversification and reduction in idiosyncratic risk in achieving efficient portfolios. The risk-free asset is introduced to examine how the investment opportunity set changes when investors can borrow or lend at the risk-free rate. This gives rise to the \textbf{Capital Market Line} and the \textbf{tangency portfolio}, redefining the efficient set when investors can combine risky assets with the risk-free asset.
+
+\noindent Further analysis replaces industry portfolios with factor-mimicking portfolios from the \textbf{Fama--French three-factor model} and \textbf{Fama--French five-factor model}, allowing an assessment of whether systematic risk factors span the investment opportunity set more efficiently than industry-based portfolios. Because theoretical factor portfolios are not directly investable, the study also considers practical ETF-based proxies designed to replicate these factors in an implementable manner.
+
+\noindent Finally, the stability of portfolio performance is examined by comparing \textbf{in-sample} (ex-post) and \textbf{out-of-sample} (ex-ante) Sharpe ratios across two sub-periods. Statistical tests of Sharpe ratio equality are conducted using the classical procedure of \parencite{JobsonKorkie1981}, as well as the robust methodology of \parencite{LedoitWolf2008}. These tests provide insight into the sensitivity of optimised portfolios to estimation error and the stability of risk-adjusted performance across different market regimes. The analysis therefore evaluates how different portfolio construction, factor representation, and estimation risk influence the efficiency of the investment opportunity set in a mean-variance framework.
+
+\newpage \section{Data and Empirical Framework} 
+\label{sec:data}
+\normalsize
+\justifying This study uses data obtained from the Kenneth R. French Data Library \parencite{FrenchLibrary}, specifically the monthly value-weighted returns on the 30 industry portfolios.  \noindent The sample period spans January 1980 to December 2025, yielding $T = 552$ monthly observations across $N = 30$ industry portfolios. All returns are expressed in decimal form to facilitate portfolio optimisation. \noindent The risk-free rate is obtained from the Fama-French factors dataset and corresponds to the one-month Treasury bill rate. The average monthly risk-free rate, $\bar{r}_{f}$, is \( 0.3297\% \). \noindent Portfolio analysis is conducted within the Markowitz mean-variance framework, which characterises the set of portfolios that minimise variance for a given level of expected return \parencite{Markowitz1952}. Using the vector of expected returns and the variance-covariance matrix of asset returns, we construct the minimum variance efficient frontier by solving the standard portfolio optimisation problem:
+
+
+\[ \min_{w} \; w^\top \Sigma w, \qquad \text{where } w^\top \mu = \mu_p, \quad w^\top \mathbf{1} = 1 \] 
+
+\noindent\justifying Two key portfolios are identified along the frontier: the Global Minimum-Variance (GMV) portfolio, which is the portfolio of risky assets with the lowest possible variance independent of expected return estimates and depends only on the covariance matrix; and the tangency portfolio, which maximises the Sharpe ratio of the risky portfolio when investors can combine risky assets with the risk-free asset. \[ w_\text{GMV} = \frac{\Sigma^{-1}\mathbf{1}} {\mathbf{1}^{\top}\Sigma^{-1}\mathbf{1}} \qquad w_\text{TAN} = \frac{\Sigma^{-1}(\mu - r_f\mathbf{1})} {\mathbf{1}^{\top}\Sigma^{-1}(\mu - r_f\mathbf{1})} \] 
+
+
+
+\noindent The risk-adjusted performance of portfolios is evaluated using the Sharpe ratio:
+\[
+SR = \frac{\mu_p - r_f}{\sigma_p}
+\]
+\noindent\footnotesize\textit{where} $\mu_p$ denotes the expected portfolio return, 
+$\sigma_p$ its standard deviation, and $r_f$ the risk-free rate.
+
+\normalsize
+\noindent \justifying To mitigate the sensitivity of mean-variance optimisation to estimation error in expected returns, particularly when sample mean returns are imprecisely estimated \parencite{Merton1980}, Bayes-Stein shrinkage is also implemented, following the approach of \parencite{jorion1986}. Three efficient frontiers are constructed: one using sample estimates, a second applying Bayes–Stein shrinkage to expected returns only, and a third applying shrinkage to both expected returns and the covariance matrix. \[ \mu^{BS} = (1-\lambda)\hat{\mu} + \lambda \mu_\text{GMV} \] 
+\indent\footnotesize\textit{where} $\mu_\text{GMV}$ denotes the mean return of the global minimum-variance portfolio, which serves as the shrinkage \indent target.
+
+\normalsize
+
+\noindent \justifying The analysis is extended by comparing industry portfolios with individual stocks, incorporating a risk-free asset to derive the Capital Market Line, and evaluating efficient frontiers constructed from Fama and French factor portfolios \parencite{fama1993, fama2015} and their practical ETF-based proxies. Portfolio performance is evaluated using expected returns, volatility, and risk-adjusted performance measured by the Sharpe ratio.Prior to constructing the efficient frontiers, the industry portfolio returns are converted to excess returns to align with the Fama-French factor portfolios.
+
+Individual stocks were selected by verifying their SIC code was included in a given industry. Stocks were selected based on their volumne, mar
+
+
+\newpage
+% === ===
+
+\section{Mean--Variance Analysis - 30 Industry Portfolios}
+\label{sec:mv-frontier}
+\subsection{(2a) Efficient Frontiers}
+
+Using the approach defined in \autoref{sec:data}, we estimate three efficient frontiers for the 30 industry portfolios using alternative estimators of expected returns and the covariance matrix. The first frontier uses the sample mean returns and covariance matrix, corresponding to the standard maximum-likelihood estimators and provides the benchmark against which the shrinkage-based frontiers are evaluated.
+
+
+\noindent The second frontier applies the Bayes–Stein estimator to expected returns following \parencite{jorion1986}. In this implementation, the vector of sample mean returns is shrunk toward the mean return of the sample global minimum-variance (GMV) portfolio. The estimated shrinkage intensity is ($\phi = 0.544$), with approximately $54\%$ 
+of the weight placed on the shrinkage target while the remaining $46\%$ is placed on the individual sample means.
+
+\noindent The third frontier applies shrinkage to the covariance matrix by shrinking it towards a scaled identity matrix. The estimated covariance shrinkage weight is relatively small ($\delta$=0.055), indicating that the sample covariance matrix is fairly stable.
+This result is consistent with portfolio literature showing that estimation error in expected returns typically plays a larger role in portfolio optimisation than covariance estimation error \parencite[]{jorion1986, LedoitWolf2004}. By reducing the dispersion of estimated expected returns, shrinkage estimators limit the extreme portfolio weights that often arise from optimisation on noisy sample inputs, producing more stable and economically plausible portfolios.  \parencite{Michaud1989}.
+
+\begin{figure}[H] \centering \includegraphics[width=1\textwidth]{Figuras/Figure 2.1.png} \caption{Monthly Efficient Frontiers for the 30 Industry Portfolios (1980--2025).} \label{fig:frontier} \end{figure} 
+\newpage
+\noindent \autoref{fig:frontier} presents the three efficient frontiers on the same axes, with the global minimum-variance (GMV) and tangency portfolios highlighted. The sample frontier lies furthest outward, reflecting the more optimistic risk–return trade-off implied by unconstrained sample mean estimates. This result reflects the well-known “error maximisation” problem in mean–variance optimisation \parencite{Michaud1989}. The Bayes–Stein mean-shrinkage frontier lies slightly inside the sample frontier, reflecting the shrinkage of expected returns toward the GMV target. The Sharpe ratio of the tangency portfolio falls from 0.306 under the sample estimator to 0.230 under the Bayes-Stein mean shrinkage, reflecting the reduction in extreme mean estimates. 
+
+
+\subsection{(2b) GMV and Tangency Portfolio Statistics}
+
+Assuming the risk-free rate equals its sample average over the period, we compute the mean return, excess return, volatility, and Sharpe ratio of the GMV and tangency portfolios under each estimation method. The results are reported below:
+
+\begin{table}[H]
+\centering
+\caption{ GMV Portfolio Statistics (Monthly) -- Industries (1980--2025)}
+\label{tab:q2_gmv}
+\begin{tabular}{lccc}
+\toprule
+Method & Mean & Volatility & Sharpe \\
+\midrule
+Sample      & 0.0097 & 0.0314 & 0.205 \\
+BS Mean     & 0.0097 & 0.0314 & 0.205 \\
+BS Mean+Cov & 0.0098 & 0.0320 & 0.204 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Tangency Portfolio Statistics (Monthly) -- Industries (1980--2025)}
+\label{tab:q2_tan}
+\begin{tabular}{lccc}
+\toprule
+Method & Mean & Volatility & Sharpe \\
+\midrule
+Sample      & 0.0176 & 0.0469 & 0.306 \\
+BS Mean     & 0.0114 & 0.0352 & 0.230 \\
+BS Mean+Cov & 0.0112 & 0.0353 & 0.225 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Consistent with portfolio theory, shrinkage primarily affects the tangency portfolio because it depends directly on expected return estimates, whereas the GMV portfolio is driven mainly by the covariance matrix, reflecting the sensitivity of tangency portfolios to estimation error in expected returns. 
+
+\noindent The sample tangency portfolio achieves the highest Sharpe ratio (0.306), reflecting the unconstrained use of sample mean estimates. When both means and covariances are shrunk, the tangency portfolio becomes more conservative: expected return decreases to approximately $0.79\%$  per month, volatility falls to $3.53\%$ and the Sharpe ratio falls to 0.225. Covariance shrinkage stabilises the optimisation problem by reducing sampling noise in the estimated covariance matrix, which reduces extreme portfolio tilts driven by estimation noise \parencite{LedoitWolf2004}.
+
+\noindent In contrast, performance differences for the GMV portfolio are modest across estimators, as GMV portfolio weights depend only on the covariance matrix and are therefore largely unaffected by adjustments to expected returns, consistent with the estimation-error problem documented by \parencite{Michaud1989}.
+
+\subsection{(2c) Comparison and Interpretation}
+
+The differences between the three frontiers arise from how each estimator addresses estimation error in expected returns and covariances. The sample frontier relies entirely on historical estimates and therefore reflects the raw mean–variance trade-off implied by the data. As discussed earlier, estimation error in expected returns can distort mean–variance optimisation and produce overly optimistic efficient frontiers \parencite[]{Michaud1989}.
+
+\noindent Bayes–Stein shrinkage mitigates this problem by shrinking the vector of expected returns toward a common target, in this case the return of the sample GMV portfolio \parencite{jorion1986}. In our sample, the shrinkage intensity is moderate ($\phi = 0.544$), indicating that approximately half of the weight is placed on the shrinkage target. This materially reduces the dispersion of expected return estimates and shifts the efficient frontier slightly inward relative to the sample frontier producing a more conservative efficient frontier. Economically, this adjustment reduces estimation noise in the mean return estimates while preserving much of the cross-sectional structure in the data.
+
+\noindent Shrinking both expected returns and the covariance matrix moves the frontier further inward. This reflects reduced dispersion in expected return estimates and greater stability in the estimated covariance structure. Covariance shrinkage toward a structured target stabilizes the estimated risk structure and reduces the influence of extreme correlations. The estimated covariance shrinkage weight is relatively small ($\delta = 0.055$), indicating that the sample covariance matrix is already fairly stable given the long time dimension of the data. Nevertheless, the additional regularisation leads to more conservative portfolio allocations and a lower tangency Sharpe ratio. This stabilizing effect is consistent with \cite{LedoitWolf2004}, who show that covariance shrinkage improves the conditioning of the covariance matrix and reduces the impact of sampling noise in high-dimensional portfolio problems.
+
+\noindent Overall, the shrinkage estimators trade a modest reduction in estimated in-sample performance for greater stability and robustness to estimation error. This pattern reflects the well-known sensitivity of tangency portfolios to mean estimation error as discussed by \parencite{Merton1980}, whereas the GMV portfolio depends primarily on the covariance structure of returns.
+
+% === ===
+\newpage 
+
+\section{30 Industries vs 30 Individual Stocks}
+
+% \noindent We repeat the analysis of Question 2 using one representative stock 
+% from each of the 30 industries. Because several individual stocks do not 
+% have return data extending back to January 1980, the comparison is 
+% conducted over the common sample period 1990--2025. This ensures that 
+% both the industry and stock frontiers are estimated using identical 
+% data windows, making the comparison economically meaningful.
+% The FF 30 Industry maps the SIC codes of each stock to a given industry. Different industries have different coverages. Some companies are mapped to surprising industries, Coca-Cola (KO) is mapped to the Alcohol industry. The Coal industry only has one publicly available stock with continuous recent history, BTU. The common period with coal included is 2017-05–2025-11. The Coal industry and BTU are dropped for a longer common period 1992-05–2025-11.
+% We then apply Bayes–Stein to a multi-asset portfolio of individual stocks, one selected from each of the Fama French Industries. Given the short common sample period if we include Coal, we also test the case of a 29 Industry vs Stock case.
+% Excluding coal increased our required mean shrinkage ($+0.13$). This can be explained by the increased distance between our MV-efficient portfolios and the GMV portfolio. Despite the smaller shrinkage, the Sharpe collapses most
+% NOTE: Move discussion of why inc exc COal to be in data and framework
+
+\autoref{fig:stock-vs-ind} compares the efficient frontiers constructed from individual stocks and industry portfolios using both the sample estimates and Bayes–Stein (BS) shrinkage estimators. In the sample case (blue lines), the industry frontier lies above the stock frontier, indicating that industry portfolios achieve higher expected returns for a given level of volatility. This pattern is consistent across both panels and reflects the diversification benefits obtained by aggregating individual stocks into industries \parencite{Markowitz1952}, which reduces idiosyncratic volatility through cross-sectional averaging of firm-specific shocks.
+
+Applying Bayes–Stein shrinkage substantially compresses the distance between the stock and industry frontiers. By shrinking extreme expected return estimates toward a common target, thereby reducing dispersion in the cross-section of expected returns, the estimator reduces dispersion in expected returns and mitigates the influence of estimation error that often drives extreme portfolios in the sample frontier. As a result, the BS frontiers for stocks and industries become much closer, particularly in the low-volatility region.
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{Figuras/image3.1.png}
+    \caption{Bayes-Stein Shrinkage on Industry and Stock Frontiers (2017-1992--2025).}
+    \label{fig:stock-vs-ind}
+\end{figure}
+
+\autoref{tab:stock-v-ind} confirms this pattern using Sharpe ratio differences defined as stock minus industry. Under the sample frontier, the tangency portfolio exhibits a negative Sharpe difference, indicating that industry portfolios achieve slightly higher risk-adjusted performance. After applying Bayes–Stein shrinkage, these differences become smaller and in some cases change sign, further illustrating that shrinkage reduces the apparent performance gap between stock and industry portfolios.
+
+The results suggest that while industry portfolios appear to dominate under the sample estimator, Bayes–Stein shrinkage largely reduces the difference between the two opportunity sets, highlighting the role of estimation error in shaping the sample efficient frontier and illustrating how shrinkage estimators can stabilise portfolio optimisation in the presence of noisy return estimates.
+
+% \begin{table}[!h]
+% \centering
+% \caption{Sharpe Ratio Delta (Stock -- Industry)}
+% \label{tab:stock-v-ind}
+% \begin{tabular}{lcccccc}
+% \toprule
+%  & \multicolumn{2}{c}{Sample} 
+%  & \multicolumn{2}{c}{BS($\mu$)}
+%  & \multicolumn{2}{c}{BS ($\mu,\Sigma$)} \\
+% Portfolio
+%  & $\Delta$SR (N=30) & $\Delta$SR (N=29)
+%  & $\Delta$SR (N=30) & $\Delta$SR (N=29)
+%  & $\Delta$SR (N=30) & $\Delta$SR (N=29) \\
+% \midrule
+% GMV & 0.172088 & 0.052867 & 0.172088 & 0.052867 & 0.156468 & 0.056355 \\
+% TAN & -0.116466 & -0.020610 & -0.081697 & 0.015404 & -0.026639 & 0.020913 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+\begin{table}[h!]
+\centering
+\caption{Sharpe Ratio Delta (Stock -- Industry)}
+\label{tab:stock-v-ind}
+\setlength{\tabcolsep}{4pt}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+ & \multicolumn{2}{c}{SF} 
+ & \multicolumn{2}{c}{BS-M} 
+ & \multicolumn{2}{c}{BS-MC} \\
+Portfolio 
+ & $\Delta$SR (30) & $\Delta$SR (29)
+ & $\Delta$SR (30) & $\Delta$SR (29)
+ & $\Delta$SR (30) & $\Delta$SR (29) \\
+\midrule
+GMV & 0.1721 & 0.0529 & 0.1721 & 0.0529 & 0.1565 & 0.0564 \\
+TAN & -0.1165 & -0.0206 & -0.0817 & 0.0154 & -0.0266 & 0.0209 \\
+\bottomrule
+\end{tabular}
+
+\vspace{3pt}
+\footnotesize
+SF = Sample Frontier. 
+BS-M = Bayes--Stein Mean. 
+BS-MC = Bayes--Stein Mean + Covariance.
+\end{table}
+\FloatBarrier
+
+% \noindent Several systematic differences occur. First, the stock universe exhibits a substantially higher Sharpe ratio  for the global minimum-variance (GMV) portfolio under all estimators  (e.g., 0.243 vs 0.193 under sample estimates). This reflects the greater cross-sectional dispersion among individual stocks, which enhances 
+% diversification opportunities at the low-risk end of the frontier.
+
+% \noindent Second, at the tangency portfolio, industry portfolios slightly outperform stocks under the sample and Bayes--Stein mean estimators (Sharpe 0.346 vs 0.341). Industry portfolios are internally diversified across firms within each sector, which reduces idiosyncratic volatility and results in a more stable risk-return tradeoff at higher expected returns.
+
+% \noindent Third, the impact of Bayes--Stein shrinkage is modest across both universes. The shrinkage intensities are relatively small over the 1990--2025 sample, indicating limited estimation noise in expected returns. Covariance 
+% shrinkage (Ledoit--Wolf) smooths the frontier and slightly improves the stock GMV Sharpe ratio, consistent with the higher estimation error typically present in individual stock returns.
+
+% \noindent Overall, individual stocks provide stronger diversification benefits at the minimum-variance end of the frontier, while industry portfolios deliver slightly more stable performance at the tangency point. The qualitative conclusions remain robust across estimation methods.
+\clearpage
+\newpage
+\section{30 Industries with a Risk-Free Asset}
+\label{sec:risk-free}
+
+We now extend the \parencite{Markowitz1952}framework to include a risk-free asset. The risk-free rate is
+taken from the Fama-French factors dataset over the same sample period (1980–2025). This
+leads to the Capital Market Line (CML), which represents the new efficient set of portfolios
+(Lintner, 1965; Sharpe, 1964). \parencite{Sharpe1964, Lintner1965}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{Figuras/image 4.1.png}
+    \caption{Monthly Efficient Frontiers for the 30 Industry Portfolios (1980--2025).}
+    \label{fig:cml}
+\end{figure}
+%one or other
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=1\linewidth]{cml_eoin.png}
+%     \caption{Monthly Efficient Frontiers for the 30 Industry Portfolios (1980--2025).}
+%     \label{fig:cml_eoin}
+% \end{figure}
+
+\noindent With a risk-free asset available, all investors hold the same tangency portfolio of risky assets and differ only in their allocation between that portfolio and risk risk-free asset based on their risk preferences \parencite{Tobin1958}.
+
+\begin{table}[H]
+\centering
+\caption{MV Efficient Portfolios with Risk-Free Asset (1980--2025)}
+\label{tab:cml}
+\begin{tabular}{lcccc}
+\toprule
+Portfolio & Mean Return & Volatility & Excess Return & Sharpe Ratio \\
+\midrule
+Global Minimum Variance (GMV) & 0.009733 & 0.031396 & 0.006435 & 0.204973 \\
+Tangency Portfolio            & 0.017633 & 0.046860 & 0.014336 & 0.305928 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% While the GMV portfolio minimises variance among risky assets, it is no longer efficient once a risk-free asset is available. Efficient portfolios are instead obtained as combinations of the risk-free asset and the tangency portfolio along the Capital Market Line.
+
+% \noindent The tangency portfolio maximises the Sharpe ratio at 0.306, which exceeds that of the GMV portfolio (0.205), reflecting the higher risk-adjusted performance achieved when expected returns are incorporated into portfolio selection. The Sharpe ratio equals the slope of the Capital Market Line, linking the risk-return trade-off directly to the investment opportunity set; consistent with the equilibrium implication of the Capital Asset Pricing Model \parencite{Lintner1965, Sharpe1964}. 
+
+\autoref{tab:cml} reports the characteristics of the global minimum variance (GMV) and tangency portfolios. The tangency portfolio exhibits a higher expected return and Sharpe ratio than the GMV portfolio, reflecting the improved risk–return trade-off obtained when expected returns are incorporated into the optimisation. While the GMV portfolio minimises variance among risky assets, the tangency portfolio maximises the Sharpe ratio and therefore lies on the Capital Market Line.
+
+\clearpage
+\subsection{Comparison with the Risky-Asset Frontier}
+
+\noindent Relative to portfolio construction in \autoref{sec:mv-frontier}, the introduction of the risk-free asset fundamentally changes the efficient set. Previously, efficiency was defined along the risky minimum-variance frontier and investors chose among portfolios on that curve depending on their risk tolerance.
+
+\noindent Once the risk-free asset is introduced, the efficient frontier becomes the straight Capital Market Line (CML), which is tangent to the risky frontier at the Sharpe-maximising portfolio. All portfolios on the risky frontier other than the tangency portfolio become inefficient, because a combination of the risk-free asset and the tangency portfolio delivers a higher expected return for the same level of risk.
+
+\noindent Thus, while \autoref{sec:mv-frontier} compares industries and stocks within the risky asset universe, 
+\autoref{sec:risk-free} demonstrates that for the industry universe alone, efficiency is ultimately 
+governed by the Sharpe ratio once borrowing and lending at the risk-free rate 
+are allowed.
+
+This result implies that portfolio choice can be separated into two stages: identifying the optimal risky portfolio (the tangency portfolio) and determining the allocation between that portfolio and the risk-free asset according to individual risk preferences.
+
+\newpage
+\section{Industries vs Fama--French Factors (Excess Return Space)}
+\label{sec:ff-excess}
+
+\noindent We repeat the analysis of Question 4 using the Fama--French factor-mimicking 
+portfolios in place of the 30 industry portfolios. Specifically, we consider the Fama–French three-factor model consisting of the market excess return (Mkt–RF), size (SMB), and value (HML) factors \parencite{fama1993}, and the five-factor model which additionally includes profitability (RMW) and investment (CMA) \parencite{fama2015}.
+
+\noindent Because the factor returns are reported in excess return format, the industry 
+portfolios are converted to excess returns before comparison. All efficient 
+frontiers are therefore constructed in excess return space (i.e., $r_f = 0$), 
+ensuring consistency across universes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{Figuras/Diagram5.1.png}
+    \caption{Monthly Efficient Frontiers for the 30 Industry Portfolios (1980--2025).}
+    \label{fig:frontier-excess-space}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{GMV and Tangency Portfolios (Excess Return Space, 1980--2025)}
+\label{tab:q5_summary}
+\begin{tabular}{llcccc}
+\toprule
+Series & Portfolio & Excess Mean & Vol &  Sharpe \\
+\midrule
+Industries & GMV & 0.006419 & 0.031293 &  0.205124 \\
+Industries & Tangency & 0.014287 & 0.046686  & 0.306029 \\
+\midrule
+FF3 & GMV & 0.002278 & 0.017905  & 0.127250 \\
+FF3 & Tangency & 0.005357 & 0.027456  & 0.195126 \\
+\midrule
+FF5 & GMV & 0.002926 & 0.010810  & 0.270663 \\
+FF5 & Tangency & 0.003796 & 0.012313  & 0.308290 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
+\subsection{Economic Interpretation of the Factor Frontiers}
+\noindent The industry universe spans the widest range of expected returns and 
+volatility, reflecting the heterogeneous and concentrated nature of 
+sector portfolios. In contrast, the FF5 frontier achieves the highest Sharpe ratio (0.308) despite much lower volatility relative to both the industry portfolios and the FF3 specification.
+
+\noindent The FF3 frontier lies strictly inside the industry frontier. Both its GMV 
+and tangency portfolios exhibit lower expected returns and lower Sharpe 
+ratios. This suggests that the FF3 factors do not fully span the cross-section of returns captured by the industry portfolios, indicating that additional sources of systematic variation may be required to achieve full mean–variance efficiency.
+The addition of profitability (RMW) and 
+investment (CMA) factors enhances diversification and improves 
+risk-adjusted performance relative to FF3.
+Unlike industry portfolios, the Fama–French factors are constructed as long–short factor-mimicking portfolios designed to isolate systematic sources of compensated risk while largely diversifying away idiosyncratic variation. This construction naturally results in lower volatility relative to long-only sector portfolios.
+
+\noindent Economically, factor portfolios are designed to isolate systematic sources 
+of compensated risk while minimizing idiosyncratic exposure. This explains 
+their lower volatility. The FF5 model appears to capture a more complete 
+set of systematic risk premia, resulting in superior efficiency in 
+mean–variance space.
+Factor models therefore provide a lower-dimensional representation of the investment opportunity set by summarising cross-sectional return variation through a small number of systematic risk premia.
+
+\noindent Overall, while industry portfolios deliver higher raw excess returns, the FF5 factors achieve superior mean–variance efficiency by capturing systematic risk premia while substantially reducing idiosyncratic volatility.
+
+% -----------------------------------------------------------
+\newpage 
+\section{Fama--French Factors vs Practical Proxies}
+\label{sec:factor-v-proxies}
+To implement the Fama–French factors using investable instruments, we map each academic factor to a representative ETF proxy.
+\begin{table}[h]
+\centering
+\caption{Practical ETF Proxies for the Fama--French Factors}
+\begin{tabular}{lll}
+\toprule
+Factor & ETF Proxy & Interpretation \\
+\midrule
+Market ($R_m - R_f$) & VTI & Broad U.S. equity market exposure \\
+SMB (Size) & IJR & Small-cap equity exposure \\
+HML (Value) & IWD & Value-oriented large and mid-cap stocks \\
+RMW (Profitability) & QUAL & High profitability / quality firms \\
+CMA (Investment) & USMV & Conservative investment / low-volatility firms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% \begin{table}[h]
+% \centering
+% \caption{Efficient Portfolio Characteristics: Factors vs ETF Proxies}
+% \begin{tabular}{lcccc}
+% \toprule
+% \multicolumn{5}{c}{\textbf{Panel A: Three-Factor Model}} \\
+% \midrule
+% & \multicolumn{2}{c}{FF3 Factors} & \multicolumn{2}{c}{Proxy ETFs} \\
+% Portfolio & Volatility & Sharpe & Volatility & Sharpe \\
+% \midrule
+% GMV & 0.0215 & 0.004 & 0.0389 & 0.220 \\
+% Tangency & 1.6087 & 0.283 & 0.0509 & 0.288 \\
+% \midrule
+% \multicolumn{5}{c}{\textbf{Panel B: Five-Factor Model}} \\
+% \midrule
+% & \multicolumn{2}{c}{FF5 Factors} & \multicolumn{2}{c}{Proxy ETFs} \\
+% Portfolio & Volatility & Sharpe & Volatility & Sharpe \\
+% \midrule
+% GMV & 0.0120 & 0.065 & 0.0324 & 0.232 \\
+% Tangency & 0.0545 & 0.297 & 0.0421 & 0.301 \\
+% \bottomrule
+% \end{tabular}
+\begin{table}[]
+\centering
+\setlength{\tabcolsep}{4pt}
+\caption{Portfolio Characteristics: Academic Factors vs ETF Proxies}
+\begin{tabular}{lcccccccc}
+\toprule
+& \multicolumn{4}{c}{Three-Factor Model} & \multicolumn{4}{c}{Five-Factor Model} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+& \multicolumn{2}{c}{FF3} & \multicolumn{2}{c}{Proxy} 
+& \multicolumn{2}{c}{FF5} & \multicolumn{2}{c}{Proxy} \\
+Portfolio & Vol & SR & Vol & SR & Vol & SR & Vol & SR \\
+\midrule
+GMV & 0.022 & 0.004 & 0.039 & 0.220 & 0.012 & 0.065 & 0.032 & 0.232 \\
+Tangency & 1.609 & 0.283 & 0.051 & 0.288 & 0.055 & 0.297 & 0.042 & 0.301 \\
+\bottomrule
+\end{tabular}
+    \label{tab:factor-v-proxy}
+
+\end{table}
+
+
+\noindent
+ ETF returns are converted to excess returns by subtracting the risk-free rate so that they are directly comparable to the factor series. The analysis is conducted over the common sample period determined by ETF data availability. \autoref{tab:proxy_results} reports the global minimum-variance (GMV) and tangency portfolios for the academic factor portfolios and the ETF proxies. \autoref{fig:ff_proxy_frontiers} compares the corresponding efficient frontiers.
+
+\begin{table}[h!]
+\centering
+\caption{GMV and Tangency Portfolios: Factors vs Practical Proxies}
+\label{tab:proxy_results}
+\begin{tabular}{lccc}
+\hline
+Series & Portfolio & Volatility & Sharpe Ratio \\
+\hline
+FF3 Factors & GMV & 0.021478 & 0.003782 \\
+FF3 Factors & Tangency & 1.608689 & 0.283244 \\
+Proxy-3 ETFs & GMV & 0.038940 & 0.220314 \\
+Proxy-3 ETFs & Tangency & 0.050896 & 0.287960 \\
+FF5 Factors & GMV & 0.011955 & 0.065170 \\
+FF5 Factors & Tangency & 0.054528 & 0.297239 \\
+Proxy-5 ETFs & GMV & 0.032391 & 0.231892 \\
+Proxy-5 ETFs & Tangency & 0.042082 & 0.301274 \\
+\hline
+\end{tabular}
+\end{table}
+Under the three-factor specification, the tangency portfolio constructed from the academic factors exhibits extremely high volatility. This reflects the unconstrained optimization framework, which allows large long–short positions in the factor portfolios. In particular, the solution takes substantial short exposure to the SMB factor while leveraging the market factor.
+
+In contrast, the ETF proxy basket consists of long-only instruments. This restriction prevents extreme leverage and produces economically plausible volatility levels while delivering a comparable Sharpe ratio.
+
+For the five-factor specification, the ETF proxies closely replicate the academic factors, yielding nearly identical Sharpe ratios and similar volatility levels.
+\noindent
+\autoref{tab:factor-v-proxy} compares the GMV and tangency portfolios obtained using the academic factor portfolios and the ETF proxy baskets. For the three-factor specification, the FF3 tangency portfolio exhibits extremely high volatility. This reflects the unconstrained nature of the optimisation, which allows large long–short positions in the underlying factors, particularly through the ability to take substantial short exposure to the SMB factor while levering the market factor. This reflects the large gross exposures that arise when dollar-neutral long-short factor portfolios are optimised without portfolio constraints. Although the Sharpe ratio is relatively high, such a portfolio is economically unrealistic.
+
+In contrast, the ETF proxy basket relies on long-only instruments, which limits such extreme leverage and results in a tangency portfolio with economically plausible volatility while achieving a very similar Sharpe ratio. For the five-factor model, the ETF proxies replicate the academic factors closely, with nearly identical Sharpe ratios and comparable volatility levels. The ETF proxies exhibit high correlations with their corresponding academic factors, suggesting that they capture similar systematic risk exposures. For the five-factor model, the proxy basket tracks the academic FF5 frontier closely. The tangency Sharpe ratios are nearly identical (0.297 for FF5 and 0.301 for the proxy basket Overall, these results suggest that liquid ETF proxies can approximate the risk–return characteristics of the academic factor portfolios while remaining implementable in practice.
+
+
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=\textwidth]{Figuras/image 6.1.png}
+\caption{Efficient frontier comparison between Fama--French factors and ETF proxy baskets.}
+\label{fig:ff_proxy_frontiers}
+\end{figure}
+
+
+
+% -----------------------------------------------------------
+\clearpage
+\newpage
+\section{In-sample vs Out-of-sample Sharpe Stability (1980--2002 vs 2003--2025)}
+
+
+\noindent We re-estimate the monthly efficient frontiers including the risk-free asset over two contiguous periods:
+(i) an in-sample period from 1980--01 to 2002--12 and (ii) an out-of-sample period from 2003--01 to 2025--12.
+From each in-sample frontier, we select the global minimum-variance (GMV) portfolio and the tangency (TAN) portfolio and evaluate their performance out-of-sample.
+We conduct tests for equality of Sharpe ratios between the two periods using the classical Jobson--Korkie (1981) test and the Ledoit--Wolf (2008) test, which does not rely on i.i.d.\ or normality assumptions.
+
+\autoref{tab:q7_is_points} reports the in-sample mean return, volatility and Sharpe ratio for the selected GMV and TAN portfolios for the 30 industry portfolios and the Fama--French 5-factor (2$\times$3) mimicking portfolios (FF5).
+
+\begin{table}[H]
+\centering
+\caption{In-sample portfolio points (1980--01 to 2002--12).}
+\label{tab:q7_is_points}
+\begin{tabular}{l l r r r}
+\toprule
+portfolio & asset\_set & mean\_is & vol\_is & sharpe\_is \\
+\midrule
+30 ind TAN & industries & 0.025766 & 0.060917 & 0.337291 \\
+30 ind GMV & industries & 0.010694 & 0.031386 & 0.174352 \\
+FF5 TAN & ff5\_excess & 0.004326 & 0.010829 & 0.399498 \\
+FF5 GMV & ff5\_excess & 0.003892 & 0.010271 & 0.378917 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\autoref{tab:q7_sr_is_oos} reports the in-sample Sharpe ratio ($sr\_is$), the out-of-sample Sharpe ratio ($sr\_oos$), and the difference $\Delta = sr\_oos - sr\_is$.
+
+\begin{table}[H]
+\centering
+\caption{Sharpe ratio comparison: in-sample vs out-of-sample (2003--01 to 2025--12).}
+\label{tab:q7_sr_is_oos}
+\begin{tabular}{l r r r}
+\toprule
+portfolio & sr\_is & sr\_oos & delta \\
+\midrule
+30 ind TAN & 0.337291 & 0.081338 & -0.255953 \\
+30 ind GMV & 0.174352 & 0.165024 & -0.009328 \\
+FF5 TAN & 0.399498 & 0.198728 & -0.200770 \\
+FF5 GMV & 0.378917 & 0.178208 & -0.200709 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\autoref{tab:q7_jk} reports the Jobson--Korkie test statistic and p-value for the null hypothesis that the Sharpe ratios are equal across the in-sample and out-of-sample periods.
+
+\begin{table}[H]
+\centering
+\caption{Jobson--Korkie (1981) test for equality of Sharpe ratios (IS vs OOS).}
+\label{tab:q7_jk}
+\begin{tabular}{l r r r r}
+\toprule
+portfolio & sr\_is & sr\_oos & z\_stat & pvalue \\
+\midrule
+30 ind TAN & 0.336835 & 0.081486 & 2.955630 & 0.003120 \\
+30 ind GMV & 0.173547 & 0.165300 & 0.096195 & 0.923365 \\
+FF5 TAN & 0.399498 & 0.198728 & 2.301921 & 0.021340 \\
+FF5 GMV & 0.378917 & 0.178208 & 2.307759 & 0.021013 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\autoref{tab:q7_lw} reports the Ledoit--Wolf test results, including the confidence interval for the Sharpe difference and the p-value.
+
+\begin{table}[H]
+\centering
+\caption{Ledoit--Wolf (2008) test for equality of Sharpe ratios (IS vs OOS).}
+\label{tab:q7_lw}
+\begin{tabular}{l r r r r r r}
+\toprule
+portfolio & sr\_is & sr\_oos & diff & ci\_low & ci\_high & pvalue \\
+\midrule
+30 ind TAN & 0.336835 & 0.081486 & 0.255349 & 0.011385 & 0.419937 & 0.000 \\
+30 ind GMV & 0.173547 & 0.165300 & 0.008247 & -0.156032 & 0.175345 & 0.950 \\
+FF5 TAN & 0.399498 & 0.198728 & 0.200770 & 0.012101 & 0.396389 & 0.040 \\
+FF5 GMV & 0.378917 & 0.178208 & 0.200709 & 0.013738 & 0.393684 & 0.038 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Empirically, the tangency portfolios experience large Sharpe ratio deterioration out-of-sample (e.g., the 30-industry TAN Sharpe falls from $\approx 0.34$ in-sample to $\approx 0.08$ out-of-sample), and both the Jobson--Korkie and Ledoit--Wolf tests reject equality of Sharpe ratios for the tangency portfolios at conventional levels.
+In contrast, the 30-industry GMV portfolio exhibits comparatively stable Sharpe performance, and the tests do not reject equality for GMV (high p-values).
+These results are consistent with the general expectation that tangency portfolios are more sensitive to estimation error in expected return than GMV portfolios, so a portfolio that is tangency-efficient in-sample need not remain on the efficient frontier out-of-sample. Therefore, the in-sample tangency portfolios do not remain mean–variance efficient out-of-sample, whereas the GMV portfolio displays comparatively greater stability across subsamples.This instability is consistent with \cite{Michaud1989}, who argues that mean–variance optimization tends to overfit historical data, resulting in portfolios that perform poorly when evaluated out-of-sample.
+
+\newpage
+\newpage
+\section{Portfolio Extensions and Alternative Investment Constraints}
+
+\subsection{8.1 Constraints --- Full Common Sample (2013--08 to 2025--12)}
+
+\noindent This section evaluates the effect of no-short-selling ($w_i \geq 0$) and mild short-selling ($w_i \geq -0.25$) constraints on four factor asset sets: FF3, Proxy3, FF5, and Proxy5. The analysis spans the full common sample of 149 monthly observations (August 2013 -- December 2025) in excess-return space. Results are summarised in \autoref{tab:8_1_tangency} and \autoref{fig:8_1_constraints}.
+
+\subsubsection*{Key Findings}
+
+\noindent The unconstrained FF3 tangency portfolio produces economically implausible results: a gross leverage of $\sim$74$\times$ and an effective $N$ near zero, indicating extreme concentration with offsetting positions. This is consistent with \cite{Michaud1989} and \cite{green1992}, who show that mean-variance optimisation tends to amplify estimation errors in expected returns, producing unstable and extreme portfolio weights. Imposing no-short-selling reduces gross leverage to 1.0, though the Sharpe ratio falls from 0.283 to 0.239 (\autoref{tab:8_1_tangency}). For the Proxy3 set, the constrained Sharpe of 0.236 is nearly identical to the FF3 constrained case, confirming that the practical ETF proxies replicate the achievable constrained tangency almost exactly. Across FF5 and Proxy5, a partial relaxation to $w_i \geq -0.25$ largely recovers the unconstrained Sharpe for FF5 (0.292) at moderate leverage (1.70$\times$), indicating that only small short positions carry most of the value in factor space.
+
+\begin{table}[H]
+\centering
+\caption{Tangency Portfolio Summary --- Full Sample. Mean and Vol are monthly (\%), Sharpe is monthly. Eff.\ N $= 1/\sum w_i^2$ measures portfolio concentration (higher = more diversified).}
+\label{tab:8_1_tangency}
+\small
+\begin{tabular}{lllrrrr}
+\hline
+\textbf{Asset Set} & \textbf{Model} & \textbf{Constraint} & \textbf{Mean (\%)} & \textbf{Vol (\%)} & \textbf{Sharpe} & \textbf{Eff.\ N} \\
+\hline
+FF3    & Unconstrained & ---          & 0.456 & 1.609 & 0.283 & 0.000 \\
+FF3    & Constrained   & $w\geq0.00$  & 0.010 & 0.043 & 0.239 & 1.000 \\
+FF3    & Constrained   & $w\geq-0.25$ & 0.015 & 0.057 & 0.256 & 0.516 \\
+\hline
+Proxy3 & Unconstrained & ---          & 0.015 & 0.051 & 0.288 & 0.110 \\
+Proxy3 & Constrained   & $w\geq0.00$  & 0.010 & 0.043 & 0.236 & 1.000 \\
+Proxy3 & Constrained   & $w\geq-0.25$ & 0.011 & 0.043 & 0.266 & 0.421 \\
+\hline
+FF5    & Unconstrained & ---          & 0.016 & 0.055 & 0.297 & 0.370 \\
+FF5    & Constrained   & $w\geq0.00$  & 0.006 & 0.023 & 0.273 & 1.993 \\
+FF5    & Constrained   & $w\geq-0.25$ & 0.010 & 0.033 & 0.292 & 1.020 \\
+\hline
+Proxy5 & Unconstrained & ---          & 0.013 & 0.042 & 0.301 & 0.094 \\
+Proxy5 & Constrained   & $w\geq0.00$  & 0.009 & 0.038 & 0.241 & 2.952 \\
+Proxy5 & Constrained   & $w\geq-0.25$ & 0.010 & 0.036 & 0.275 & 0.555 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{fig_8_1_constraints_frontiers}
+    \caption{Efficient frontiers with no-short-selling constraints. Left panel: FF3 and Proxy3; Right panel: FF5 and Proxy5. Solid lines show unconstrained frontiers; dashed lines show constrained ($w_i \geq 0$) frontiers. Stars mark tangency portfolios.}
+    \label{fig:8_1_constraints}
+\end{figure}
+
+% -----------------------------------------------------------
+\subsection{8.2 Constraints and In-Sample / Out-of-Sample Persistence}
+
+\noindent Scope 8.2 tests whether imposing portfolio constraints reduces the well-known in-sample (IS) optimism bias that inflates Sharpe ratios relative to out-of-sample (OOS) realised performance \parencite{JobsonKorkie1981}. The IS window runs through December 2002 and the OOS window covers January 2003 -- December 2025 for Industries. For FF5 and Proxy5 a contiguous half-split was used due to the shorter data period. Results are reported in \autoref{tab:8_2_sharpe} and \autoref{fig:8_2a_is_oos}, \autoref{fig:8_2b_ff5_scale}, \autoref{fig:8_2c_ff5}.
+
+\subsubsection*{Key Findings}
+
+\noindent Without constraints, the IS--OOS Sharpe gap is economically and statistically significant for all three universes. For the 30-industry portfolio, the unconstrained optimiser achieves an IS Sharpe of 0.337 but only 0.081 OOS ($\Delta = -0.256$); the \cite{LedoitWolf2008} (LW) test rejects equality at $p = 0.001$ (\autoref{tab:8_2_sharpe}). Constraining weights to non-negative values dramatically closes the gap: the constrained OOS Sharpe rises to 0.200 ($\Delta = -0.022$) and the LW test fails to reject equality ($p = 0.835$), suggesting the remaining gap is attributable to sampling noise rather than systematic overfitting. This finding is consistent with \cite{jagannathan2003}, who demonstrate that imposing a no-short-selling constraint acts as a shrinkage estimator on the inverse covariance matrix, thereby reducing the impact of estimation error.
+
+\noindent For the FF5 universe, the unconstrained IS--OOS gap of 0.099 is statistically insignificant ($p = 0.468$), and the no-short constraint reduces it further to 0.044 ($p = 0.732$), as shown in \autoref{fig:8_2c_ff5}. The Proxy5 universe shows large gaps under all specifications, with the constrained OOS Sharpe (0.132) remaining substantially below IS (0.397), and the LW test rejecting equality ($p = 0.027$), pointing to estimation instability specific to the ETF-based proxies (\autoref{fig:8_2a_is_oos}).
+
+\begin{table}[H]
+\centering
+\caption{IS/OOS Sharpe Ratios with Statistical Tests. $\Delta =$ SR\textsubscript{OOS} $-$ SR\textsubscript{IS}. LW $p$-value from \cite{ledoit2008} test for $H_0$: SR\textsubscript{IS} $=$ SR\textsubscript{OOS}.}
+\label{tab:8_2_sharpe}
+\small
+\begin{tabular}{lllrrrr}
+\hline
+\textbf{Asset Set} & \textbf{Model} & \textbf{Constraint} & \textbf{SR IS} & \textbf{SR OOS} & \textbf{$\Delta$} & \textbf{LW $p$-val} \\
+\hline
+Industries & Unconstrained & ---          & 0.337 & 0.081 & $-$0.256 & 0.001 \\
+Industries & Constrained   & $w\geq0.00$  & 0.222 & 0.200 & $-$0.022 & 0.835 \\
+Industries & Constrained   & $w\geq-0.25$ & 0.315 & 0.110 & $-$0.205 & 0.011 \\
+\hline
+FF5        & Unconstrained & ---          & 0.350 & 0.251 & $-$0.099 & 0.468 \\
+FF5        & Constrained   & $w\geq0.00$  & 0.306 & 0.262 & $-$0.044 & 0.732 \\
+FF5        & Constrained   & $w\geq-0.25$ & 0.346 & 0.259 & $-$0.087 & 0.534 \\
+\hline
+Proxy5     & Unconstrained & ---          & 0.460 & 0.125 & $-$0.336 & 0.009 \\
+Proxy5     & Constrained   & $w\geq0.00$  & 0.397 & 0.132 & $-$0.264 & 0.027 \\
+Proxy5     & Constrained   & $w\geq-0.25$ & 0.440 & 0.082 & $-$0.358 & 0.003 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{fig_8_2a_is_oos_panels}
+    \caption{IS vs.\ OOS efficient frontiers under the no-short constraint for Industries (left), FF5 (centre), and Proxy5 (right). The IS frontier (blue) consistently lies above the OOS frontier (orange), reflecting the reduction in achievable performance out-of-sample.}
+    \label{fig:8_2a_is_oos}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{fig_8_2b_is_oos_ff5_scale}
+    \caption{IS vs.\ OOS frontiers with axes locked to FF5-based limits for cross-universe comparability. Proxy5 shows the widest IS--OOS frontier divergence, consistent with the significant LW test results in \autoref{tab:8_2_sharpe}.}
+    \label{fig:8_2b_ff5_scale}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{fig_8_2c_ff5_focused}
+    \caption{Focused FF5 view. The IS and OOS tangency portfolios are close in risk--return space, consistent with the statistically insignificant IS--OOS Sharpe gap for the constrained specification ($p = 0.732$).}
+    \label{fig:8_2c_ff5}
+\end{figure}
+
+% -----------------------------------------------------------
+\subsection{8.3 Bayes--Stein Shrinkage Persistence (IS-Only Estimation)}
+
+\noindent Scope 8.3 examines whether Bayes--Stein (BS) shrinkage of sample means towards a grand mean target \parencite{jorion1986} improves OOS performance, either alone or combined with Ledoit--Wolf covariance shrinkage \parencite{LedoitWolf2004}. All shrinkage parameters are estimated using IS data only and applied to evaluate OOS Sharpe ratios. Diagnostics are reported in \autoref{tab:8_3_diag} and results in \autoref{tab:8_3_sharpe}.
+
+\subsubsection*{Key Findings}
+
+\noindent The shrinkage intensity $\kappa$ for the Industries universe is 0.58, meaning the BS estimator pulls sample means 58\% of the way toward the grand mean --- substantially higher than the FF5 intensity (0.44), reflecting greater estimation uncertainty in a 30-asset universe \parencite{jorion1986}. Ledoit--Wolf covariance shrinkage also differs markedly across universes (\autoref{tab:8_3_diag}): FF5 requires much higher regularisation ($\lambda = 0.181$) than Industries ($\lambda = 0.034$), consistent with the short FF5 IS sample of only 74 observations.
+
+\noindent As shown in \autoref{tab:8_3_sharpe}, BS shrinkage delivers modest but consistent OOS Sharpe improvements for the Industries universe under the no-short constraint: the sample-based OOS Sharpe of 0.200 rises to 0.205 under BS mean shrinkage and 0.206 under joint mean-and-covariance shrinkage. For FF5, improvements are negligible (OOS Sharpe moves from 0.262 to 0.260--0.262), and Proxy5 shows no benefit from shrinkage. This is consistent with the theoretical expectation that shrinkage primarily helps when the number of assets is large relative to the sample size \parencite{ledoit2004}. Overall, BS shrinkage complements rather than substitutes for portfolio constraints as a practical overfitting control.
+
+\begin{table}[H]
+\centering
+\caption{Shrinkage Diagnostics (IS Period). $\kappa$ = Bayes--Stein mean shrinkage intensity towards the grand mean \parencite{jorion1986}. $\lambda$ = effective Ledoit--Wolf covariance shrinkage parameter \parencite{ledoit2004}.}
+\label{tab:8_3_diag}
+\small
+\begin{tabular}{lrrlll}
+\hline
+\textbf{Asset Set} & \textbf{T\textsubscript{IS}} & \textbf{$\kappa$} & \textbf{Target} & \textbf{Cov Method} & \textbf{$\lambda$ (eff.)} \\
+\hline
+Industries & 276 & 0.580 & Grand Mean & Ledoit--Wolf & 0.034 \\
+FF5        & 74  & 0.440 & Grand Mean & Ledoit--Wolf & 0.181 \\
+Proxy5     & 74  & 0.590 & Grand Mean & Ledoit--Wolf & 0.055 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{OOS Sharpe Comparison: Sample vs Bayes--Stein Estimators (selected specifications, no-short constraint). BS ($\mu$) shrinks means only; BS ($\mu$+Cov) applies joint mean and covariance shrinkage.}
+\label{tab:8_3_sharpe}
+\small
+\begin{tabular}{lllrrr}
+\hline
+\textbf{Asset Set} & \textbf{Estimator} & \textbf{Constraint} & \textbf{SR IS} & \textbf{SR OOS} & \textbf{$\Delta$} \\
+\hline
+Industries & Sample           & Unconstrained & 0.337 & 0.081 & $-$0.256 \\
+Industries & Sample           & $w\geq0.00$   & 0.222 & 0.200 & $-$0.022 \\
+Industries & BS ($\mu$)       & Unconstrained & 0.303 & 0.141 & $-$0.162 \\
+Industries & BS ($\mu$)       & $w\geq0.00$   & 0.207 & 0.205 & $-$0.002 \\
+Industries & BS ($\mu$+Cov)   & $w\geq0.00$   & 0.208 & 0.206 & $-$0.001 \\
+\hline
+FF5        & Sample           & $w\geq0.00$   & 0.306 & 0.262 & $-$0.044 \\
+FF5        & BS ($\mu$)       & $w\geq0.00$   & 0.305 & 0.260 & $-$0.045 \\
+\hline
+Proxy5     & Sample           & $w\geq0.00$   & 0.397 & 0.132 & $-$0.264 \\
+Proxy5     & BS ($\mu$)       & $w\geq0.00$   & 0.397 & 0.132 & $-$0.264 \\
+\hline
+\end{tabular}
+\end{table}
+
+\noindent Overall, the results across Sections 8.1--8.3 indicate that no short selling constraints are the most effective tool for reducing estimation error driven over fitting, while Bayes--Stein shrinkage 
+provides incremental but complementary improvements, particularly in  large-asset universes such as the 30-industry portfolio.
+
+\newpage
+\section{Mutual Fund Performance Evaluation}
+
+
+\autoref{fig:mvfunds} positions the three mutual funds relative to the efficient frontiers constructed from the 30-industry portfolios and the Fama–French factor sets. All funds lie below the efficient frontiers, indicating that diversified portfolios constructed from large asset universes dominate individual mutual funds in mean–variance terms.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Figuras/image 9.1.png}
+\caption{Mutual Funds in Mean–Variance Space}
+\label{fig:mvfunds}
+\end{figure}
+
+Fidelity Contrafund (FCNTX) exhibits the highest mean excess return but also the highest volatility. Dodge \& Cox Stock (DODGX) displays slightly lower returns with similar risk, while Vanguard 500 (VFINX) lies close to the market proxy, reflecting its passive index-tracking strategy.
+
+\autoref{tab:alpharesults} reports alpha estimates relative to the market proxy, the FF5 tangency portfolio, and the 30-industry tangency portfolio. FCNTX delivers the strongest abnormal performance, with an annualised alpha of approximately 10.43\% relative to the market proxy and statistically significant excess returns relative to the FF5 tangency portfolio. DODGX shows positive but weaker abnormal returns, while VFINX produces alphas close to zero across benchmarks, consistent with passive market replication.
+
+
+\begin{table}[H]
+\small
+\centering
+\caption{Mutual Fund Alpha Relative to Benchmark Portfolios}
+\label{tab:alpharesults}
+\begin{tabular}{l l c c c c c c c}
+\hline
+Fund & Benchmark & Monthly $\alpha$ (\%) & Ann. $\alpha$ (\%) & $t(\alpha)$ & $p(\alpha)$ & $\beta$ & Info Ratio \\
+\hline
+DODGX & Market Proxy & 0.3634 & 4.3610 & 1.7800 & 0.0751 & 0.9724 & 0.5286\\
+DODGX & FF5 Tangency & 0.7304 & 8.7647 & 2.3836 & 0.0171 & 2.1451 & 0.6949\\
+DODGX & 30-Ind. Tangency & 0.2147 & 2.5764 & 0.1141 & 0.9092 & 1.3121 & 0.1557 \\
+FCNTX & Market Proxy & 0.8693 & 10.4315 & 4.2602 & 0.0000 & 0.9367 & 1.3299\\
+FCNTX & FF5 Tangency & 1.3547 & 16.2561 & 4.1035 & 0.0000 & 1.6035 & 1.1837 \\
+FCNTX & 30-Ind. Tangency & 1.8537 & 22.2443 & 1.0420 & 0.2974 & -0.0489 & 1.3982 \\
+VFINX & Market Proxy & 0.0602 & 0.7226 & 1.7830 & 0.0746 & 0.9691 & 0.5398 \\
+VFINX & FF5 Tangency & 0.5017 & 6.0199 & 1.8394 & 0.0659 & 1.8720 & 0.5520 \\
+VFINX & 30-Ind. Tangency & 0.1139 & 1.3662 & 0.0658 & 0.9476 & 1.0726 & 0.0951\\
+\hline
+\end{tabular}
+\end{table}
+
+Rolling 36-month Sharpe ratios in \autoref{fig:rollingsharpe} confirm these results. FCNTX consistently delivers the highest risk-adjusted performance, whereas DODGX performs moderately above the market proxy and VFINX closely tracks market risk-adjusted returns. All series experience a sharp decline during the 2020 market disruption before recovering in subsequent periods.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{Figuras/image 9.2.png}
+\caption{Rolling 36-Month Sharpe Ratios}
+\label{fig:rollingsharpe}
+\end{figure}
+
+\newpage 
+\section{Conclusion}
+
+\newpage
+\section{Bibliography}
+\printbibliography
+\end{document}

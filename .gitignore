@@ -37,3 +37,7 @@ fin41360_data/processed/
 
 # Archived report figures
 report/figures/archive*/
+
+# Generated report artifacts
+report/figures/*
+report/tables/*
