@@ -1,3 +1,3 @@
-scenario,common_start,common_end,n_obs,n_assets_industry,n_assets_stock,mean_shrinkage_intensity_industry,mean_shrinkage_intensity_stock,cov_shrink_method,cov_shrinkage_intensity_industry,cov_shrinkage_intensity_stock
-with_coal_30,2017-05,2025-11,103,30,30,0.003804003903725363,0.010808586223908116,ledoit_wolf,0.05915803375653115,0.11873402493250053
-drop_coal_29,1992-05,2025-11,403,29,29,0.003719016555361712,0.013250029671536804,ledoit_wolf,0.019642320676045173,0.07246601007246846
+scenario,common_start,common_end,n_obs,n_assets_industry,n_assets_stock,mean_shrinkage_intensity_industry,mean_shrinkage_intensity_stock,mean_shrinkage_target,cov_shrink_method,cov_shrinkage_intensity_industry,cov_shrinkage_intensity_stock
+with_coal_30,2017-05,2025-11,103,30,30,0.35053578765033877,0.4829453743854783,gmv,ledoit_wolf,0.05915803375653115,0.11873402493250053
+drop_coal_29,1992-05,2025-11,403,29,29,0.481485860597388,0.63422490922301,gmv,ledoit_wolf,0.019642320676045173,0.07246601007246846

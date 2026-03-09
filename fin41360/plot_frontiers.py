@@ -434,11 +434,11 @@ def plot_scope2_overlay(
         x_pts.extend([float(points[label]["gmv"]["vol"]), float(points[label]["tan"]["vol"])])
         y_pts.extend([float(points[label]["gmv"]["mean"]), float(points[label]["tan"]["mean"])])
 
-    y_min = None
+    y_min = 0.0
     if xlim is None or ylim is None:
         gmv_points = [points[label]["gmv"] for label in ("sample", "bs_mean", "bs_mean_cov")]
         tan_points = [points[label]["tan"] for label in ("sample", "bs_mean", "bs_mean_cov")]
-        x_min, y_min = _gmv_lower_limits(gmv_points)
+        x_min, _ = _gmv_lower_limits(gmv_points)
         tan_ref = _ranked_tangency_point(tan_points, rank=1)
         if xlim is None and x_min is not None and tan_ref is not None:
             xlim = (x_min, 1.2 * float(tan_ref["vol"]))
@@ -450,7 +450,7 @@ def plot_scope2_overlay(
         xlim=xlim,
         ylim=ylim,
     )
-    _apply_ymin(ax, 0.0 if anchor_origin else y_min)
+    _apply_ymin(ax, y_min)
     _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
     if show_title is None:
@@ -458,11 +458,11 @@ def plot_scope2_overlay(
     if show_title:
         if sample_meta:
             title = (
-                f"Question 2: 30-Industry MV Frontier "
+                f"Task 2: 30-Industry Frontier "
                 f"({sample_meta.get('start', '')} to {sample_meta.get('end', '')})"
             )
         else:
-            title = "Question 2: 30-Industry MV Frontier"
+            title = "Task 2: 30-Industry Frontier"
         ax.set_title(title)
     ax.legend(
         handles=_scope3_estimator_handles() + _portfolio_marker_handles(),
@@ -551,11 +551,11 @@ def plot_scope3_overlay(
                 label="_nolegend_",
             )
 
-    y_min = None
+    y_min = 0.0
     if xlim is None or ylim is None:
         gmv_points = [points[est][univ]["gmv"] for est in est_order for univ in univ_order]
         tan_points = [points[est][univ]["tan"] for est in est_order for univ in univ_order]
-        x_min, y_min = _gmv_lower_limits(gmv_points)
+        x_min, _ = _gmv_lower_limits(gmv_points)
         tan_ref = _ranked_tangency_point(tan_points, rank=2)
         if xlim is None and x_min is not None and tan_ref is not None:
             xlim = (x_min, 1.2 * float(tan_ref["vol"]))
@@ -567,7 +567,7 @@ def plot_scope3_overlay(
         xlim=xlim,
         ylim=ylim,
     )
-    _apply_ymin(ax, 0.0 if anchor_origin else y_min)
+    _apply_ymin(ax, y_min)
     _apply_visible_ymax(ax)
     _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
     if show_title is None:
@@ -578,16 +578,16 @@ def plot_scope3_overlay(
             n_stk = meta.get("n_assets_stock")
             if n_ind is not None and n_stk is not None:
                 ax.set_title(
-                    f"Question 3: {n_ind} Industries vs {n_stk} Stocks "
+                    f"Task 3: {n_ind} Industries vs {n_stk} Stocks "
                     f"({meta.get('common_start', '')} to {meta.get('common_end', '')})"
                 )
             else:
                 ax.set_title(
-                    "Question 3: Industries vs Stocks "
+                    "Task 3: Industries vs Stocks "
                     f"({meta.get('common_start', '')} to {meta.get('common_end', '')})"
                 )
         else:
-            ax.set_title("Question 3: Industries vs Stocks")
+            ax.set_title("Task 3: Industries vs Stocks")
 
     n_ind = meta.get("n_assets_industry") if meta else None
     n_stk = meta.get("n_assets_stock") if meta else None
@@ -616,8 +616,8 @@ def plot_scope3_panels(
     xlim: tuple[float, float] | None = None,
     ylim: tuple[float, float] | None = None,
     anchor_origin: bool = False,
-    with_title: str = "Scope 3: With Coal (30)",
-    drop_title: str = "Scope 3: No Coal (29)",
+    with_title: str = "Task 3 Sensitivity: With Coal (30)",
+    drop_title: str = "Task 3 Main: Drop Coal (29)",
 ):
     """
     Two-panel Scope 3 plot: with_coal_30 vs drop_coal_29.
@@ -690,11 +690,11 @@ def plot_scope3_panels(
 
         local_xlim = xlim
         local_ylim = ylim
-        local_ymin = None
+        local_ymin = 0.0
         if local_xlim is None or local_ylim is None:
             gmv_points = [points[est][univ]["gmv"] for est in est_order for univ in univ_order]
             tan_points = [points[est][univ]["tan"] for est in est_order for univ in univ_order]
-            x_min, local_ymin = _gmv_lower_limits(gmv_points)
+            x_min, _ = _gmv_lower_limits(gmv_points)
             tan_ref = _ranked_tangency_point(tan_points, rank=2)
             if local_xlim is None and x_min is not None and tan_ref is not None:
                 local_xlim = (x_min, 1.2 * float(tan_ref["vol"]))
@@ -707,7 +707,7 @@ def plot_scope3_panels(
             xlim=local_xlim,
             ylim=local_ylim,
         )
-        _apply_ymin(ax, 0.0 if anchor_origin else local_ymin)
+        _apply_ymin(ax, local_ymin)
         _apply_visible_ymax(ax)
 
         _apply_percent_axes(ax, "Volatility (monthly std dev)", "Expected return (monthly, net)")
@@ -804,11 +804,11 @@ def plot_scope5_overlay(
     if show_title:
         if meta:
             ax.set_title(
-                "Question 5: Industries vs FF3 vs FF5 "
+                "Task 5: Industries vs FF3 vs FF5 "
                 f"({meta.get('start', '')} to {meta.get('end', '')})"
             )
         else:
-            ax.set_title("Question 5: Industries vs FF3 vs FF5")
+            ax.set_title("Task 5: Industries vs FF3 vs FF5")
     ax.legend(
         handles=_scope5_universe_handles() + _portfolio_marker_handles(),
         loc="upper left",
@@ -903,11 +903,11 @@ def plot_scope4_with_rf(
     if show_title:
         if meta:
             ax.set_title(
-                "Question 4: 30 Industries + Risk-Free "
+                "Task 4: Industries with Risk-Free Asset "
                 f"({meta.get('start', '')} to {meta.get('end', '')})"
             )
         else:
-            ax.set_title("Question 4: 30 Industries + Risk-Free")
+            ax.set_title("Task 4: Industries with Risk-Free Asset")
     line_handles, line_labels = ax.get_legend_handles_labels()
     rf_handles = []
     rf_labels = []
@@ -987,7 +987,7 @@ def plot_scope6_panels(
     ax.scatter(points["proxy3"]["tan"]["vol"], points["proxy3"]["tan"]["mean"], **p3_t)
     _apply_percent_axes(ax, "Volatility (monthly, excess)", "Expected excess return (monthly)")
     if show_title:
-        ax.set_title("Scope 6: FF3 vs Proxy-3")
+        ax.set_title("Task 6: FF3 vs Proxy3")
     _apply_report_grid(ax)
     panel1_lines, panel1_markers = scope6_panel_legend_handles("ff3")
     ax.legend(handles=panel1_lines + panel1_markers, loc="upper left", fontsize=8)
@@ -1022,7 +1022,7 @@ def plot_scope6_panels(
     ax.scatter(points["proxy5"]["tan"]["vol"], points["proxy5"]["tan"]["mean"], **p5_t)
     _apply_percent_axes(ax, "Volatility (monthly, excess)", "Expected excess return (monthly)")
     if show_title:
-        ax.set_title("Scope 6: FF5 vs Proxy-5")
+        ax.set_title("Task 6: FF5 vs Proxy5")
     _apply_report_grid(ax)
     panel2_lines, panel2_markers = scope6_panel_legend_handles("ff5")
     ax.legend(handles=panel2_lines + panel2_markers, loc="upper left", fontsize=8)
@@ -1076,9 +1076,7 @@ def plot_scope6_panels(
         _apply_visible_ymax(ax)
 
     if show_title and meta:
-        title = f"Question 6: FF Factors vs Practical Proxies ({meta.get('start', '')} to {meta.get('end', '')})"
-        if limit_basis == "tangency_vol_rank":
-            title += f" [limits: tan vol rank {max(1, int(tan_vol_rank))}]"
+        title = f"Task 6: FF Factors vs Practical Proxies ({meta.get('start', '')} to {meta.get('end', '')})"
         fig.suptitle(title)
     fig.tight_layout()
     return fig
@@ -1182,12 +1180,10 @@ def plot_scope6_overlay(
         show_title = bool(PLOT_DEFAULTS["show_titles"])
     if show_title:
         if meta:
-            title = f"Question 6: FF Factors vs Practical Proxies ({meta.get('start', '')} to {meta.get('end', '')})"
-            if limit_basis == "tangency_vol_rank":
-                title += f" [limits: tan vol rank {max(1, int(tan_vol_rank))}]"
+            title = f"Task 6: FF Factors vs Practical Proxies ({meta.get('start', '')} to {meta.get('end', '')})"
             ax.set_title(title)
         else:
-            ax.set_title("Question 6: FF Factors vs Practical Proxies")
+            ax.set_title("Task 6: FF Factors vs Practical Proxies")
     _apply_report_grid(ax)
     scope6_lines, scope6_markers = scope6_legend_handles()
     ax.legend(handles=scope6_lines + scope6_markers, loc="upper left", fontsize=8)
