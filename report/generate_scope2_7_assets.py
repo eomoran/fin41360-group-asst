@@ -2,18 +2,17 @@
 Generate report and appendix assets for Scopes 2-7.
 
 Policy implemented:
-- Report figures use plot-specific readability limits.
+- Report figures use plot-specific readability limits aligned to the notebook.
 - Appendix figures use anchored-origin common limits for comparability.
-- Scope 6 report/appendix plots enforce FF5-based limits.
+- Scope 6 report figures use tangency-vol-rank framing (rank 2).
+- Exported figures include chart titles for easier review outside LaTeX.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
-
-import seaborn as sns
-import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -36,12 +35,34 @@ from fin41360.plot_frontiers import (
     plot_scope5_overlay,
     plot_scope6_overlay,
     plot_scope6_panels,
+    set_plot_defaults,
 )
 from fin41360.report_assets import (
     save_figures,
     save_scope_summary_tables,
     save_scope_presentation_tables,
 )
+
+
+def _configure_local_cache_env() -> None:
+    """Route Matplotlib/fontconfig caches into the workspace when unset."""
+    cache_root = PROJECT_ROOT / ".cache"
+    mpl_cache = cache_root / "matplotlib"
+    fontconfig_cache = cache_root / "fontconfig"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    mpl_cache.mkdir(parents=True, exist_ok=True)
+    fontconfig_cache.mkdir(parents=True, exist_ok=True)
+
+    os.environ.setdefault("XDG_CACHE_HOME", str(cache_root))
+    os.environ.setdefault("MPLCONFIGDIR", str(mpl_cache))
+    os.environ.setdefault("FONTCONFIG_PATH", "/opt/homebrew/etc/fonts")
+    os.environ.setdefault("FONTCONFIG_FILE", "/opt/homebrew/etc/fonts/fonts.conf")
+
+
+_configure_local_cache_env()
+
+import numpy as np
+import seaborn as sns
 
 
 def _scope3_common_limits(scope3_with: dict, scope3_drop: dict, *, efficient_frontier_only: bool) -> tuple[tuple[float, float], tuple[float, float]]:
@@ -110,7 +131,14 @@ def _scope2_report_limits(scope2: dict, *, efficient_frontier_only: bool, tan_mu
     return (float(np.nanmin(x_front)), tan_mult * float(np.nanmax(x_tan))), (float(np.nanmin(y_front)), tan_mult * float(np.nanmax(y_tan)))
 
 
-def _scope3_report_limits(scope3_result: dict, *, efficient_frontier_only: bool, tan_mult: float = 1.2, use_tan_cap: bool = True) -> tuple[tuple[float, float], tuple[float, float]]:
+def _scope3_report_limits(
+    scope3_result: dict,
+    *,
+    efficient_frontier_only: bool,
+    tan_mult: float = 1.2,
+    use_tan_cap: bool = True,
+    tan_rank: int = 1,
+) -> tuple[tuple[float, float], tuple[float, float]]:
     curves = scope3_result["plot_data"]["curves"]
     points = scope3_result["plot_data"]["points"]
     x_front: list[float] = []
@@ -131,9 +159,46 @@ def _scope3_report_limits(scope3_result: dict, *, efficient_frontier_only: bool,
             y_front.extend(means.tolist())
             x_tan.append(float(points[est][univ]["tan"]["vol"]))
             y_tan.append(float(points[est][univ]["tan"]["mean"]))
-    x_max = tan_mult * float(np.nanmax(x_tan)) if use_tan_cap else float(np.nanmax(x_front))
-    y_max = tan_mult * float(np.nanmax(y_tan)) if use_tan_cap else float(np.nanmax(y_front))
+    if use_tan_cap:
+        rank = max(1, int(tan_rank))
+        x_tan_sorted = sorted(x_tan, reverse=True)
+        y_tan_sorted = sorted(y_tan, reverse=True)
+        x_ref = x_tan_sorted[min(rank - 1, len(x_tan_sorted) - 1)]
+        y_ref = y_tan_sorted[min(rank - 1, len(y_tan_sorted) - 1)]
+        x_max = tan_mult * float(x_ref)
+        y_max = tan_mult * float(y_ref)
+    else:
+        x_max = float(np.nanmax(x_front))
+        y_max = float(np.nanmax(y_front))
     return (float(np.nanmin(x_front)), x_max), (float(np.nanmin(y_front)), y_max)
+
+
+def _scope3_report_common_limits(
+    scope3_with: dict,
+    scope3_drop: dict,
+    *,
+    efficient_frontier_only: bool,
+    tan_mult: float = 1.2,
+    tan_rank: int = 1,
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """Common Scope 3 report limits anchored at the minimum GMV x/y across both cases."""
+    x_lims: list[tuple[float, float]] = []
+    y_lims: list[tuple[float, float]] = []
+    for result in (scope3_with, scope3_drop):
+        x_lim, y_lim = _scope3_report_limits(
+            result,
+            efficient_frontier_only=efficient_frontier_only,
+            tan_mult=tan_mult,
+            use_tan_cap=True,
+            tan_rank=tan_rank,
+        )
+        x_lims.append(x_lim)
+        y_lims.append(y_lim)
+    x_min = min(limit[0] for limit in x_lims)
+    x_max = min(limit[1] for limit in x_lims)
+    y_min = min(limit[0] for limit in y_lims)
+    y_max = min(limit[1] for limit in y_lims)
+    return (x_min, x_max), (y_min, y_max)
 
 
 def _scope4_report_limits(scope4: dict, *, efficient_frontier_only: bool, tan_mult: float = 1.2) -> tuple[tuple[float, float], tuple[float, float]]:
@@ -206,11 +271,24 @@ def _scope6_report_limits(scope6: dict, *, efficient_frontier_only: bool, tan_mu
 
 
 def main() -> None:
+    _configure_local_cache_env()
     sns.set_theme(style="whitegrid", context="notebook", palette="colorblind")
+
+    bs_target = "gmv"
+    cov_shrink = "ledoit_wolf"
+    scope6_limit_basis = "tangency_vol_rank"
+    scope6_tan_vol_rank = 2
 
     report_overlay_figsize = (10.0, 7.0)
     report_panel_figsize = (14.0, 6.8)
     efficient_frontier_only = True
+
+    set_plot_defaults(
+        overlay_layout="single_column",
+        panel_layout="full_width",
+        show_titles=True,
+        figsize_scale=2,
+    )
 
     ind = load_industry_30_monthly(start="1980-01", end="2025-12")
     ff3, rf_gross = load_ff3_monthly(start="1980-01", end="2025-12")
@@ -218,8 +296,19 @@ def main() -> None:
     stocks = load_stock_returns_monthly(start="1980-01", end="2025-12", use_cache=True, source="auto")
     proxy_rets = load_scope6_proxy_returns_monthly(start="2000-01", end="2025-12", use_cache=True, source="auto", refresh=False)
 
-    scope2 = run_scope2_industries_sample_vs_bs(ind_gross=ind, rf_gross=rf_gross)
-    scope3_sens = run_scope3_sensitivity_with_and_without_coal(ind_gross=ind, stocks_gross=stocks, rf_gross=rf_gross)
+    scope2 = run_scope2_industries_sample_vs_bs(
+        ind_gross=ind,
+        rf_gross=rf_gross,
+        bs_target=bs_target,
+        cov_shrink=cov_shrink,
+    )
+    scope3_sens = run_scope3_sensitivity_with_and_without_coal(
+        ind_gross=ind,
+        stocks_gross=stocks,
+        rf_gross=rf_gross,
+        bs_target=bs_target,
+        cov_shrink=cov_shrink,
+    )
     scope3_with = scope3_sens["with_coal_30"]
     scope3_drop = scope3_sens["drop_coal_29"]
     scope4 = run_scope4_industries_with_rf(ind_gross=ind, rf_gross=rf_gross)
@@ -228,12 +317,16 @@ def main() -> None:
     scope7 = run_scope7_is_oos_tests(ind_gross=ind, ff5_excess=ff5, rf_gross=rf_gross, end_is="2002-12", start_oos="2003-01", end_oos="2025-12")
 
     scope2_report_xlim, scope2_report_ylim = _scope2_report_limits(scope2, efficient_frontier_only=efficient_frontier_only, tan_mult=1.2)
-    scope3_with_report_xlim, scope3_with_report_ylim = _scope3_report_limits(
-        scope3_with, efficient_frontier_only=efficient_frontier_only, tan_mult=1.2, use_tan_cap=False
+    scope3_report_xlim, _scope3_report_ylim = _scope3_report_common_limits(
+        scope3_with,
+        scope3_drop,
+        efficient_frontier_only=efficient_frontier_only,
+        tan_mult=1.2,
+        tan_rank=1,
     )
-    scope3_drop_report_xlim, scope3_drop_report_ylim = _scope3_report_limits(
-        scope3_drop, efficient_frontier_only=efficient_frontier_only, tan_mult=1.2, use_tan_cap=True
-    )
+    scope3_report_ylim = (0.0, min(0.04, _scope3_report_ylim[1]))
+    scope3_with_report_xlim, scope3_with_report_ylim = scope3_report_xlim, scope3_report_ylim
+    scope3_drop_report_xlim, scope3_drop_report_ylim = scope3_report_xlim, scope3_report_ylim
     scope4_report_xlim, scope4_report_ylim = _scope4_report_limits(scope4, efficient_frontier_only=efficient_frontier_only, tan_mult=1.2)
     scope5_report_xlim, scope5_report_ylim = _scope5_report_limits(scope5, efficient_frontier_only=efficient_frontier_only, tan_mult=1.2)
     scope6_report_xlim, scope6_report_ylim = _scope6_report_limits(scope6, efficient_frontier_only=efficient_frontier_only, tan_mult=1.2)
@@ -245,7 +338,7 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=scope2_report_xlim,
         ylim=scope2_report_ylim,
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope3_with = plot_scope3_overlay(
         scope3_with,
@@ -253,7 +346,7 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=scope3_with_report_xlim,
         ylim=scope3_with_report_ylim,
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope3_drop = plot_scope3_overlay(
         scope3_drop,
@@ -261,7 +354,7 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=scope3_drop_report_xlim,
         ylim=scope3_drop_report_ylim,
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope4_ymin0 = plot_scope4_with_rf(
         scope4,
@@ -269,7 +362,7 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=scope4_report_xlim,
         ylim=(0.0, scope4_report_ylim[1]),
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope4_xymin0 = plot_scope4_with_rf(
         scope4,
@@ -277,7 +370,7 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=(0.0, scope4_report_xlim[1]),
         ylim=(0.0, scope4_report_ylim[1]),
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope5 = plot_scope5_overlay(
         scope5,
@@ -285,7 +378,7 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=(0.0, scope5_report_xlim[1]),
         ylim=(0.0, scope5_report_ylim[1]),
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope5_non_anchored_origin = plot_scope5_overlay(
         scope5,
@@ -293,47 +386,51 @@ def main() -> None:
         figsize=report_overlay_figsize,
         xlim=scope5_report_xlim,
         ylim=scope5_report_ylim,
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope6_overlay = plot_scope6_overlay(
         scope6,
         efficient_frontier_only=efficient_frontier_only,
-        limit_basis="ff5",
+        limit_basis=scope6_limit_basis,
+        tan_vol_rank=scope6_tan_vol_rank,
         limit_mult=1.2,
         figsize=report_overlay_figsize,
         xlim=(0.0, scope6_report_xlim[1]),
         ylim=(0.0, scope6_report_ylim[1]),
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope6_overlay_non_anchored_origin = plot_scope6_overlay(
         scope6,
         efficient_frontier_only=efficient_frontier_only,
-        limit_basis="ff5",
+        limit_basis=scope6_limit_basis,
+        tan_vol_rank=scope6_tan_vol_rank,
         limit_mult=1.2,
         figsize=report_overlay_figsize,
         xlim=scope6_report_xlim,
         ylim=scope6_report_ylim,
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope6_panels = plot_scope6_panels(
         scope6,
         efficient_frontier_only=efficient_frontier_only,
-        limit_basis="ff5",
+        limit_basis=scope6_limit_basis,
+        tan_vol_rank=scope6_tan_vol_rank,
         limit_mult=1.2,
         figsize=report_panel_figsize,
         xlim=(0.0, scope6_report_xlim[1]),
         ylim=(0.0, scope6_report_ylim[1]),
-        show_title=False,
+        show_title=True,
     )
     fig_report_scope6_panels_non_anchored_origin = plot_scope6_panels(
         scope6,
         efficient_frontier_only=efficient_frontier_only,
-        limit_basis="ff5",
+        limit_basis=scope6_limit_basis,
+        tan_vol_rank=scope6_tan_vol_rank,
         limit_mult=1.2,
         figsize=report_panel_figsize,
         xlim=scope6_report_xlim,
         ylim=scope6_report_ylim,
-        show_title=False,
+        show_title=True,
     )
 
     # Appendix comparability figures (anchored-origin common limits).

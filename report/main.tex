@@ -1,401 +1,261 @@
 \documentclass[11pt,a4paper]{article}
 
-% -------------------------------
-% Packages
-% -------------------------------
 \usepackage[margin=1in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage{setspace}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath}
 \usepackage{booktabs}
-\usepackage{threeparttable}
 \usepackage{graphicx}
 \usepackage{float}
-\usepackage{caption}
 \usepackage{subcaption}
-\usepackage{siunitx}
-\usepackage{enumitem}
+\usepackage{csquotes}
 \usepackage[hidelinks]{hyperref}
-\usepackage[numbers]{natbib}
+\usepackage[backend=biber,style=apa]{biblatex}
 \usepackage{fancyhdr}
-\usepackage{xcolor}
+\addbibresource{../report_samples/group_11_prm.bib}
 
-% -------------------------------
-% Global formatting
-% -------------------------------
-\setstretch{1.12}
-\setlength{\parskip}{0.4em}
+\setstretch{1.08}
+\setlength{\parskip}{0.35em}
 \setlength{\parindent}{0pt}
 \setlength{\headheight}{14pt}
+\captionsetup{font=small}
 \pagestyle{fancy}
 \fancyhf{}
 \lhead{FIN41360 Group Assignment 1}
 \rhead{\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
 
-% -------------------------------
-% Optional helper commands
-% -------------------------------
-\newcommand{\finding}[1]{\textbf{Finding:} #1}
-\newcommand{\implication}[1]{\textbf{Implication:} #1}
-\newcommand{\methodnote}[1]{\textit{Method note:} #1}
-\newcommand{\reportfigorplaceholder}[2]{%
-  \IfFileExists{figures/#1}{%
-    \includegraphics[width=0.82\textwidth]{figures/#1}%
-  }{%
-    \fbox{\parbox[c][5cm][c]{0.82\textwidth}{\centering #2}}%
-  }%
-}
-% -------------------------------
-% Title block
-% -------------------------------
-\title{
-FIN41360 Portfolio and Risk Management\\
-\large Group Assignment 1: Portfolio Choice and Performance Evaluation
-}
-\author{
-\textbf{Group 11}\\[0.4em]
-\footnotesize Aadil Haris (X) \quad
-Jasveen Kaur (25219948) \quad
-Tobias Mella (24273004)\\[0.2em]
-\footnotesize Eoin Moran (25252950) \quad
-Kevin O'Regan (X)
-}
+\title{FIN41360 Portfolio and Risk Management\\
+\large Group Assignment 1: Portfolio Choice and Performance Evaluation}
+\author{\textbf{Group 11}\\[0.4em]
+\footnotesize Aadil Haris (X) \quad Jasveen Kaur (25219948) \quad Tobias Mella (24273004)\\[0.2em]
+\footnotesize Eoin Moran (25252950) \quad Kevin O'Regan (X)}
 \date{\today}
 
 \begin{document}
-\maketitle
+\hypersetup{pageanchor=false}
+\pagenumbering{gobble}
+\begin{titlepage}
+\centering
+\vspace*{3cm}
+{\Large FIN41360 Portfolio and Risk Management\par}
+\vspace{0.6cm}
+{\LARGE Group Assignment 1\par}
+\vspace{0.3cm}
+{\Large Portfolio Choice and Performance Evaluation\par}
+\vspace{1.5cm}
+{\large Group 11\par}
+\vspace{1cm}
+\begin{tabular}{ll}
+Aadil Haris & 25235473 \\
+Eoin Moran & 25252950 \\
+Jasveen Kaur & 25219948 \\
+Kevin O'Regan & 25202821 \\
+Tobias Mella & 24273004 \\
+\end{tabular}
+\vfill
+{\large \today\par}
+\end{titlepage}
+
+\clearpage
+\thispagestyle{plain}
+
+\noindent
+\textit{We declare that all material included in this project is the result of our own work and that due acknowledgement has been given in the bibliography and references to all sources beyond, electronic or personal.}
+
+\vspace{1em}
+
+\section*{Individual contribution}
+
+\noindent
+Please outline here below the type of contribution made by each team member (e.g.\ 45\% of the coding, 20\% of the writing and gave the presentation) and, in the last column, provide an indicative figure for what percentage of the overall work it represents. This percentage will be treated as a score. Those who will score at or above 25\%, 35\%, 50\% will receive 1, 2 and 4 extra marks (before grade conversion) for their individual contribution, in recognition of their effort.
+
+\vspace{1em}
+
+\renewcommand{\arraystretch}{1.35}
+\small
+\begin{tabular}{|c|p{3.1cm}|p{2.2cm}|p{6.0cm}|p{2.3cm}|}
+\hline
+& \textbf{Name and surname} & \textbf{Student nr.} & \textbf{Type of contribution} & \textbf{Contribution out of 100\%} \\ \hline
+1 & Aadil Haris & 25235473 & [INSERT INPUT HERE] & [INSERT INPUT HERE] \\ \hline
+2 & Eoin Moran & 25252950 & [INSERT INPUT HERE] & [INSERT INPUT HERE] \\ \hline
+3 & Jasveen Kaur & 25219948 & Draft code for Q8 and Q9. & [INSERT INPUT HERE] \\ \hline
+4 & Kevin O'Regan & 25202821 & Write-up and coding for Q2, Q4, and Q5; introduction; data and empirical framework section. & 20\% \\ \hline
+5 & Tobias Mella & 24273004 & Writing and coding for Q6 and Q9; first draft of the report up to Q6 in Overleaf; data processing and generation of figures/tables; scheduled and organised meetings. & 20\% \\ \hline
+\end{tabular}
+
+\vspace{0.5em}
+
+\noindent
+\footnotesize{*Please make sure that the reported figures add up to 100\%.}
+\normalsize
+
+\clearpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
 \thispagestyle{fancy}
 
-% BRIEF CONSTRAINTS (from assignment sheet):
-% - Max report length: 3000 words (including tables/figures/body text).
-% - Bibliography excluded from word count.
-% - Submission deadline: Thursday, 5 March 2026, 5:00pm.
-% - Submit soft copy (Brightspace) + hard copy + completed submission form.
+\section*{Introduction}
+Using monthly data from the Kenneth R. French Data Library \parencite{FrenchLibrary}, this report studies how estimation risk, asset definition, and implementability change mean-variance portfolio choice. We begin with the 30 industry portfolios over January 1980 to December 2025, compare sample frontiers with Bayes-Stein shrinkage variants, then test whether the main conclusions survive when the opportunity set is changed to individual stocks, augmented with a risk-free asset, or replaced by Fama-French factors and investable ETF proxies. The final part asks whether in-sample winners persist out of sample by comparing Sharpe ratios across two contiguous subperiods and then examines whether simple constraints and shrinkage improve that persistence.
 
-% NOTE (addressed): report body is drafted; optional one-page investment-brief cover can be added later.
+\section{Data and Empirical Framework}
+Following the French data legends, the core inputs are monthly value-weighted 30-industry returns, the one-month Treasury bill rate from the Fama-French factors file, and the FF3/FF5 factor series \parencite{FrenchLibrary}. The baseline industry sample runs from 1980-01 to 2025-12. When industries are compared with individual stocks or ETF proxies, each exercise uses the common date overlap so that frontier differences are not driven by mismatched windows. The stock and ETF price histories used for those comparisons were downloaded from Yahoo Finance \parencite{YahooFinance}. For the stock exercise, each stock is mapped to an FF30 industry via SIC classification and one representative stock is retained using continuity, availability, and liquidity screens.
 
-\begin{abstract}
-This report evaluates mean-variance efficient frontier construction and out-of-sample performance across 30 industry portfolios, selected individual stocks, and Fama-French factor portfolios over monthly data. We compare sample-estimate frontiers with Bayes-Stein shrinkage variants, incorporate risk-free assets, test practical factor proxies, and evaluate in-sample versus out-of-sample Sharpe stability using Jobson-Korkie and Ledoit-Wolf inference. We then discuss extensions under additional portfolio constraints and methods, and conclude with a framework for assessing mutual fund performance against market/proxy/tangency benchmarks.
-\end{abstract}
+We report the global minimum-variance (GMV) portfolio, the tangency portfolio, and the Sharpe ratio. Bayes-Stein shrinkage is used to regularize sample means toward a common target in the spirit of \textcite{jorion1986}; where stated, covariance shrinkage is added as a second layer of regularization. Because the factor portfolios are reported in excess-return form, industry and proxy returns are also converted to excess returns when they are compared with FF3 and FF5.
 
-% NOTE (open): rename "Abstract" to "Executive Summary" if final style requires.
-
-\section{Introduction}
-This report evaluates portfolio choice under estimation risk using monthly data from Ken French industry and factor datasets, selected individual stocks, and practical investable proxies. The central objective is to compare in-sample efficient-frontier results across model choices and then assess whether those results remain credible out of sample.
-
-The economic motivation is that mean-variance optimization is highly sensitive to estimation error in expected returns and covariances. For that reason, we compare sample-estimate frontiers to Bayes-Stein shrinkage variants and then stress-test findings under matched windows, proxy substitution, and explicit in-sample/out-of-sample evaluation.
-
-The report proceeds in four stages. First, we analyze how estimator choice and asset definition (industries versus stocks) affect frontier shape and portfolio statistics. Second, we add the risk-free asset and compare industry, FF3, FF5, and proxy opportunity sets in excess-return space. Third, we test stability across contiguous subperiods using Jobson-Korkie and Ledoit-Wolf inference. Finally, we summarize implementation implications, extension results, and mutual-fund benchmarking outcomes.
-
-\section{Data and Preprocessing}
-\subsection{Data Sources}
-The analysis combines:
-\begin{itemize}[leftmargin=1.2em]
-  \item Ken French 30 Industry Portfolios (monthly value-weighted returns).
-  \item Fama-French 3-factor and 5-factor (2x3) monthly returns.
-  \item Risk-free rate from Fama-French factors.
-  \item A one-stock-per-industry representative universe for Scope 3.
-  \item Practical factor proxies (Market/SMB/HML/RMW/CMA) using investable ETFs.
-\end{itemize}
-The primary assignment window is January 1980 to December 2025, subject to dataset-specific availability and common-window constraints.
-
-\subsection{Sample Alignment and Return Definitions}
-To ensure fair comparison, each cross-dataset exercise is run on the date intersection of the relevant series. Scope 3 explicitly reports both \texttt{with\_coal\_30} and \texttt{drop\_coal\_29} windows to show sample-length sensitivity induced by Coal coverage.
-
-Return treatment is consistent with assignment requirements:
-\begin{itemize}[leftmargin=1.2em]
-  \item Industry and stock series are handled as gross returns where appropriate.
-  \item Factor and proxy comparisons are run in excess-return space.
-  \item Industry gross returns are converted to excess returns when compared to FF factors.
-\end{itemize}
-
-\subsection{Methodological Setup}
-The core optimization objects are the efficient frontier, the global minimum-variance (GMV) portfolio, and the tangency (maximum Sharpe) portfolio. We estimate moments under three specifications:
-\begin{itemize}[leftmargin=1.2em]
-  \item Sample mean and covariance.
-  \item Bayes-Stein mean shrinkage with sample covariance.
-  \item Bayes-Stein mean shrinkage plus covariance shrinkage (baseline fixed $\lambda_{\Sigma}=0.10$, with Ledoit-Wolf as robustness).
-\end{itemize}
-For risky-plus-risk-free cases, we report both risky-set frontiers and the capital market line (CML) through the tangency portfolio.
-
-\section{Empirical Results}
-% Word-control template for each subsection:
-% (A) setup and period (2-3 lines)
-% (B) main chart/table reference
-% (C) 2-4 findings
-% (D) short economic interpretation
-
-\subsection{How Estimation and Asset Definition Change the Frontier (Tasks 2-3)}
-This section combines baseline estimator effects (Task 2) with the industry-vs-stock comparison on matched windows (Task 3), so the discussion reads as one coherent comparison chain.
-
-\paragraph{Reporting notation for legends and tables.}
-Use:
-\begin{itemize}[leftmargin=1.2em]
-  \item Sample: $\delta_{\mu}=0$, $\lambda_{\Sigma}=0$
-  \item Bayes-Stein mean only: $\delta_{\mu}=\hat{\delta}_{\mu}$, $\lambda_{\Sigma}=0$
-  \item Bayes-Stein mean+covariance: $\delta_{\mu}=\hat{\delta}_{\mu}$, $\lambda_{\Sigma}=0.10$ (baseline) or $\lambda_{\Sigma}=\lambda_{LW}$ (robustness)
-\end{itemize}
-State in a note that $\delta_{\mu}$ is mean shrinkage intensity and $\lambda_{\Sigma}$ is covariance shrinkage intensity.
-For Bayes-Stein mean shrinkage, we use:
-\[
-\mu_{BS}=(1-\delta_{\mu})\mu+\delta_{\mu}\bar{\mu}\mathbf{1},
-\qquad
-\Delta\mu=\mu_{BS}-\mu=\delta_{\mu}(\bar{\mu}\mathbf{1}-\mu).
-\]
-
-\paragraph{Interpretation framework.}
-Task 2 isolates estimator effects within the 30-industry universe. Task 3 then asks whether the same estimator logic carries over when the opportunity set shifts to individual stocks mapped deterministically from SIC to FF30 industries. This sequence separates estimation effect from asset-definition effect.
+\section{Tasks 2--4: Industry Frontier and Opportunity Set Comparisons}
+\subsection{Task 2: 30 Industry Portfolios}
+Figure~\ref{fig:scope2} plots the monthly efficient frontiers for the 30 industries under three estimators: sample moments, Bayes-Stein mean shrinkage, and Bayes-Stein mean-plus-covariance shrinkage. The ordering is economically intuitive. The sample frontier is the most optimistic because it loads directly on noisy sample means, while the two shrinkage frontiers lie slightly inside it because regularization pulls the optimizer away from extreme return forecasts.
 
 \begin{figure}[H]
   \centering
-  \reportfigorplaceholder{report_scope2.png}{Placeholder: Task 2 (industries) frontiers with three estimators}
-  \caption{Industry frontiers under sample and Bayes-Stein estimators.}
-  \label{fig:task2_frontiers}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{report_scope3_with_coal.png}{Placeholder: Task 3 with-coal overlay}
-  \caption{Task 3 (\texttt{with\_coal\_30}): industry vs stock frontiers with local readability limits.}
-  \label{fig:task3_frontiers}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{report_scope3_drop_coal.png}{Placeholder: Task 3 no-coal overlay}
-  \caption{Task 3 (\texttt{drop\_coal\_29}): industry vs stock frontiers with local readability limits.}
-  \label{fig:task3_frontiers_no_coal}
+  \includegraphics[width=0.78\textwidth]{figures/report_scope2.png}
+  \caption{Efficient frontiers for the 30 industry portfolios under sample estimation, Bayes-Stein mean shrinkage, and Bayes-Stein mean-plus-covariance shrinkage, 1980-01 to 2025-12. Shrinkage moves the frontier slightly inward, with the largest effect at the tangency portfolio rather than at the GMV portfolio.}
+  \label{fig:scope2}
 \end{figure}
 
 \begin{table}[H]
-  \centering
-  \begin{threeparttable}
-  \caption{GMV Summary by Estimator and Asset Set (Tasks 2-3)}
-  \label{tab:gmv_summary_t23}
-  \begin{tabular}{llcccc}
-    \toprule
-    Asset Set & Estimator & Mean & Volatility & Sharpe & $\Delta$Sharpe vs Sample \\
-    \midrule
-    Industries & Sample & -- & -- & -- & 0.000 \\
-    Industries & BS($\mu$) & -- & -- & -- & -- \\
-    Industries & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
-    Stocks (matched) & Sample & -- & -- & -- & 0.000 \\
-    Stocks (matched) & BS($\mu$) & -- & -- & -- & -- \\
-    Stocks (matched) & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
-    \bottomrule
-  \end{tabular}
-  \begin{tablenotes}
-    \footnotesize
-    \item Notes: Keep this table focused on GMV only to avoid crowding. Optional column heatmap should be applied to $\Delta$ columns only.
-  \end{tablenotes}
-  \end{threeparttable}
+\centering
+\caption{Task 2: GMV and tangency portfolio statistics}
+\label{tab:scope2}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Portfolio & Estimator & Mean & Volatility & Sharpe \\
+\midrule
+GMV & Sample & 0.0097 & 0.0314 & 0.2050 \\
+GMV & BS($\mu$) & 0.0097 & 0.0314 & 0.2051 \\
+GMV & BS($\mu,\Sigma$) & 0.0098 & 0.0316 & 0.2059 \\
+TAN & Sample & 0.0176 & 0.0469 & 0.3059 \\
+TAN & BS($\mu$) & 0.0176 & 0.0467 & 0.3052 \\
+TAN & BS($\mu,\Sigma$) & 0.0172 & 0.0462 & 0.3014 \\
+\bottomrule
+\end{tabular}
 \end{table}
+
+Table~\ref{tab:scope2} shows that the GMV portfolio is almost unchanged across estimators, which is expected because it depends mainly on the covariance matrix. The tangency portfolio is more sensitive because it uses expected returns directly. In this long sample the effect is modest rather than dramatic: Bayes-Stein mean shrinkage leaves tangency Sharpe almost unchanged, and adding covariance shrinkage lowers it only slightly from 0.3059 to 0.3014. The main result is therefore not that shrinkage transforms the opportunity set, but that it mildly reduces in-sample optimism without changing the qualitative ranking of feasible portfolios.
+
+\subsection{Task 3: 30 Industries vs 30 Individual Stocks}
+To make the stock-industry comparison meaningful, both universes are estimated on the same sample window. The main comparison uses the longer common window obtained after dropping Coal, 1992-05 to 2025-11 (403 months); retaining Coal shortens the overlap to 2017-05 to 2025-11 and is treated only as a sensitivity check.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/report_scope3_drop_coal.png}
+    \caption{Main comparison on the longer matched window after dropping Coal, 1992-05 to 2025-11}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.49\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/report_scope3_with_coal.png}
+    \caption{Sensitivity check when Coal is retained, which shortens the common window to 2017-05 to 2025-11}
+  \end{subfigure}
+  \caption{Industry versus stock efficient frontiers on matched sample windows. Both panels use common axis limits, with the x-axis starting at the minimum GMV volatility across the two cases. The longer drop-Coal window is the main comparison, while the with-Coal panel shows how retaining Coal materially shortens the overlap and raises apparent Sharpe ratios for both universes. In the with-Coal case, the sample-estimator tangency portfolios extend beyond the displayed range; see the appendix full-range chart for that view.}
+  \label{fig:scope3}
+\end{figure}
+
+In the longer window, industry tangency Sharpe (0.3528) is slightly above the matched stock value (0.3321), while Bayes-Stein and covariance shrinkage leave the gap small. This suggests that the main difference comes from diversification within the pre-formed industry portfolios rather than from estimator choice. The short coal-included sample produces much higher tangency Sharpe for both universes, confirming that overlap design is first-order for interpretation. Because Figure~\ref{fig:scope3} uses common axes for comparability, the with-Coal sample tangency portfolios are partially truncated in that panel and should be read with the appendix full-range chart if the extreme range itself is of interest. The task therefore supports two conclusions: industries remain slightly more efficient than one-stock-per-industry selections on the matched long window, and short windows can overstate the apparent advantage of both universes.
+
+\subsection{Task 4: 30 Industries with a Risk-Free Asset}
+Adding the risk-free asset changes the efficient set from the upper branch of the risky frontier to the capital market line through the tangency portfolio \parencite{Tobin1958,Sharpe1964,Lintner1965}. In economic terms, investors no longer choose among many risky efficient portfolios; they choose how much to lever or de-lever the same Sharpe-maximizing risky bundle.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{figures/report_scope4.png}
+  \caption{Industry frontier with the risk-free asset added, 1980-01 to 2025-12. The capital market line is tangent to the risky frontier at the tangency portfolio, making that portfolio the relevant risky benchmark once borrowing and lending are allowed.}
+  \label{fig:scope4}
+\end{figure}
+
+Relative to Task 2, the main implication is that the tangency portfolio becomes the only relevant risky benchmark once borrowing and lending at the average sample risk-free rate are allowed. The risky-only GMV portfolio still exists, but it is no longer the key object for efficient allocation.
+
+\section{Tasks 5 and 6: Factors and Practical Proxies}
+\subsection*{FF3 and FF5 in excess-return space}
+To compare industries with Fama-French factors, all series are expressed in excess-return form and estimated over the full 1980-01 to 2025-12 sample \parencite{fama1993,fama2015}. Figure~\ref{fig:scope5} shows that FF3 lies well inside the industry opportunity set, whereas FF5 achieves almost the same tangency Sharpe as industries with much lower volatility. This indicates that the five-factor specification spans the relevant return trade-off more efficiently than FF3 in this full sample, even though its expected returns are lower in absolute terms.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/report_scope5.png}
+  \caption{Industry, FF3, and FF5 efficient sets in excess-return space, 1980-01 to 2025-12. FF3 lies inside the industry opportunity set, while FF5 delivers a tangency portfolio with a similar Sharpe ratio at much lower volatility.}
+  \label{fig:scope5}
+\end{figure}
 
 \begin{table}[H]
-  \centering
-  \begin{threeparttable}
-  \caption{Tangency Summary by Estimator and Asset Set (Tasks 2-3)}
-  \label{tab:tan_summary_t23}
-  \begin{tabular}{llcccc}
-    \toprule
-    Asset Set & Estimator & Mean & Volatility & Sharpe & $\Delta$Sharpe vs Sample \\
-    \midrule
-    Industries & Sample & -- & -- & -- & 0.000 \\
-    Industries & BS($\mu$) & -- & -- & -- & -- \\
-    Industries & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
-    Stocks (matched) & Sample & -- & -- & -- & 0.000 \\
-    Stocks (matched) & BS($\mu$) & -- & -- & -- & -- \\
-    Stocks (matched) & BS($\mu,\Sigma$) & -- & -- & -- & -- \\
-    \bottomrule
-  \end{tabular}
-  \begin{tablenotes}
-    \footnotesize
-    \item Notes: Report common window (\texttt{start}, \texttt{end}, \texttt{n\_obs}) for \texttt{with\_coal\_30} and \texttt{drop\_coal\_29} directly below this table.
-  \end{tablenotes}
-  \end{threeparttable}
+\centering
+\caption{Task 5: tangency comparison in excess-return space, 1980-01 to 2025-12}
+\label{tab:scope5}
+\small
+\begin{tabular}{lrrr}
+\toprule
+Universe & Tangency Mean & Tangency Volatility & Tangency Sharpe \\
+\midrule
+Industries & 0.0143 & 0.0467 & 0.3060 \\
+FF3 & 0.0054 & 0.0275 & 0.1951 \\
+FF5 & 0.0038 & 0.0123 & 0.3083 \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-\paragraph{Draft findings to finalize with numbers.}
-\begin{itemize}[leftmargin=1.2em]
-  \item Scope 2 (industries, 1980--2025): tangency Sharpe is very similar under Sample (0.3059) and BS($\mu$) (0.3052), while BS($\mu,\Sigma$) lowers tangency Sharpe to 0.2882. For GMV, Sharpe moves from 0.2050 (Sample) to 0.2109 (BS($\mu,\Sigma$)), indicating modest covariance-regularization benefit at the low-risk end.
-  \item Scope 3 window sensitivity is material: \texttt{with\_coal\_30} uses 103 months (2017-05 to 2025-11), whereas \texttt{drop\_coal\_29} uses 403 months (1992-05 to 2025-11). This alone can change frontier slope and tangency statistics substantially.
-  \item In \texttt{with\_coal\_30}, tangency Sharpes are unusually high (industry 0.771 Sample; stock 0.655 Sample), consistent with short-window instability. In \texttt{drop\_coal\_29}, tangency Sharpes are lower and more moderate (industry 0.353 Sample; stock 0.332 Sample).
-  \item BS($\mu$) has small incremental impact relative to Sample in both scenarios, while BS($\mu,\Sigma$) materially compresses tangency Sharpe (for example industry: 0.771 $\rightarrow$ 0.599 in \texttt{with\_coal\_30}; 0.353 $\rightarrow$ 0.329 in \texttt{drop\_coal\_29}).
-  \item Industry mean-shrinkage intensity is slightly lower in the longer window (0.003719 vs 0.003804), but stock shrinkage intensity is higher (0.013250 vs 0.010809), so the sample-length effect is not uniform across universes.
-\end{itemize}
-
-\paragraph{Scope 3 mapping note.}
-Stock representatives are selected through a deterministic pipeline based on official FF30 SIC ranges (\texttt{Siccodes30}): ticker $\rightarrow$ SIC $\rightarrow$ FF30 industry. Within each mapped industry, one stock is selected using explicit ranking rules (coverage, history length, liquidity, market cap, alphabetical tie-break). Ambiguous or missing matches are disclosed in mapping-audit outputs, so Scope 3 comparisons are reproducible and transparent rather than discretionary.
-
-\paragraph{Interpretation note on Scope 3 levels.}
-Because \texttt{with\_coal\_30} has only 103 observations, its tangency levels should be treated as sensitivity outputs rather than baseline decision targets. The report baseline should emphasize \texttt{drop\_coal\_29} (longer-window robustness) while retaining \texttt{with\_coal\_30} to show full-universe coverage tradeoffs.
-
-\paragraph{Visual comparison between with-coal and no-coal views.}
-With local readability-oriented limits, the \texttt{with\_coal\_30} curves appear steeper and further out in mean-vol space, while \texttt{drop\_coal\_29} appears flatter and closer to long-window Scope 2 behavior. Fixed-origin/fixed-scale comparability versions are moved to the appendix. This reinforces the interpretation that short-window estimates (with Coal retained) are more sensitive and can overstate tangency performance relative to the longer-window no-coal specification.
-
-\subsection{From Risk-Free Inclusion to Factor and Proxy Comparisons (Tasks 4-6)}
-Start with the effect of adding the risk-free asset to industries (Task 4), then transition to FF3/FF5 frontier comparisons in excess-return space (Task 5), and finally FF-vs-proxy implementation differences (Task 6).
-
-\begin{itemize}[leftmargin=1.2em]
-  \item Task 4 anchor point: adding $r_f$ replaces the efficient risky branch with a CML through the tangency portfolio.
-  \item Task 5 anchor point: in the current results, FF5 tangency Sharpe is close to industry tangency Sharpe, while FF3 is lower.
-  \item Task 6 anchor point: proxy differences should be interpreted as investability/exposure translation gaps, not only as optimization noise.
-\end{itemize}
+\subsection*{Practical proxies}
+Task 6 is estimated on the shorter common proxy window, 2013-08 to 2025-12, so its levels should not be read as directly comparable to the full-sample Task 5 numbers. Figure~\ref{fig:scope6} and Table~\ref{tab:scope6} therefore compare only factor/proxy pairs within that shorter sample. Proxy5 remains close to FF5 on tangency Sharpe, but Proxy3 diverges more from FF3. The interpretation should be made within the common proxy window: the proxy basket is investable, while the academic factor portfolios remain unconstrained long-short constructs. In particular, the SMB proxy uses IJR as a long-only small-cap implementation, so it does not replicate the academic SMB construction exactly.
 
 \begin{figure}[H]
   \centering
-  \reportfigorplaceholder{report_scope4.png}{Placeholder: Task 4 industries with risk-free}
-  \caption{Task 4: industries with risk-free asset (report framing).}
-  \label{fig:task4_frontier}
+  \includegraphics[width=\textwidth]{figures/report_scope6_panels.png}
+  \caption{Academic factor frontiers versus practical proxy frontiers in the common proxy window, 2013-08 to 2025-12. Proxy5 remains close to FF5, while Proxy3 differs more visibly from FF3 despite achieving a similar tangency Sharpe ratio.}
+  \label{fig:scope6}
 \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{report_scope5.png}{Placeholder: Task 5 industries vs FF3 vs FF5}
-  \caption{Task 5: industries, FF3, and FF5 in excess-return space (report framing).}
-  \label{fig:task5_frontier}
-\end{figure}
+\begin{table}[H]
+\centering
+\caption{Task 6: tangency comparison in the common proxy window, 2013-08 to 2025-12}
+\label{tab:scope6}
+\small
+\begin{tabular}{lrr}
+\toprule
+Pair & Factor Sharpe & Proxy Sharpe \\
+\midrule
+FF3 vs Proxy3 & 0.2832 & 0.2880 \\
+FF5 vs Proxy5 & 0.2972 & 0.3013 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{report_scope6_panels.png}{Placeholder: Task 6 FF vs proxy panels}
-  \caption{Task 6 (primary): FF vs proxy two-panel comparison (report framing).}
-  \label{fig:task6_panels}
-\end{figure}
+The practical implication is narrower than before: in the short proxy window, both proxy baskets preserve tangency Sharpe reasonably well, but Proxy3 reaches that result through a different, more implementable construction. Task 6 is therefore best read as an implementability comparison on a shorter sample, not as a direct continuation of the full-sample Task 5 ranking.
 
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{report_scope6_overlay.png}{Placeholder: Task 6 FF vs proxy overlay}
-  \caption{Task 6 (supplementary): FF vs proxy overlay (report framing).}
-  \label{fig:task6_overlay}
-\end{figure}
+\section{Task 7: In-Sample vs Out-of-Sample Persistence}
+The persistence test splits the sample into two contiguous periods, 1980-01 to 2002-12 and 2003-01 to 2025-12, and evaluates the GMV and tangency portfolios chosen in the first period. Table~\ref{tab:scope7} reports in-sample and out-of-sample Sharpe ratios together with Jobson-Korkie and Ledoit-Wolf tests for equality of Sharpe ratios \parencite{JobsonKorkie1981,LedoitWolf2008}. Ledoit-Wolf is treated as the primary decision rule because it is more robust; Jobson-Korkie is reported as a classical cross-check.
 
-\paragraph{Task 4 draft narrative.}
-Including the risk-free asset changes the efficient set from the risky-only branch to the CML-tangency representation. In practical terms, the investment decision becomes a leverage/deleverage choice around the tangency portfolio rather than movement along the full risky frontier.
+\begin{table}[H]
+\centering
+\caption{Task 7: persistence of selected in-sample portfolios}
+\label{tab:scope7}
+\small
+\resizebox{\textwidth}{!}{\input{tables/scope7_decision_compact.tex}}
+\end{table}
 
-\paragraph{Task 5 draft narrative.}
-When all sets are compared in excess-return space, FF5 and industry tangency portfolios show similar Sharpe levels in our current outputs, while FF3 is weaker. This suggests that the additional FF5 dimensions improve risk-adjusted efficiency relative to FF3 in the sample used, while remaining conditional on period and estimation method.
+The answer to the brief is clear. The in-sample tangency portfolios do not remain efficient out of sample in any strong sense: both 30-industry TAN and FF5 TAN suffer statistically significant Sharpe deterioration under Ledoit-Wolf. By contrast, 30-industry GMV does not show significant deterioration, and FF5 GMV is borderline, with Jobson-Korkie rejecting but Ledoit-Wolf not rejecting at the 5\% level. That disagreement is not especially surprising: Jobson-Korkie is more dependent on iid normal-return approximations, whereas Ledoit-Wolf is designed to be more robust when those assumptions are doubtful \parencite{JobsonKorkie1981,LedoitWolf2008}. Persistence is therefore much stronger for conservative low-risk portfolios than for high-Sharpe in-sample tangency picks.
 
-\paragraph{Task 6 draft narrative.}
-Proxy frontiers are interpreted as implementation analogues, not exact replicas of theoretical factor-mimicking portfolios. The proxy set is deliberately investable and uses transparent ETF choices. In this setup, Proxy-3 resembles FF3 at lower volatility, while Proxy-5 remains close to FF5 on Sharpe, consistent with limited marginal contribution of SMB in the FF5 tangency solution over this sample.
+\section{Task 8 Extension: Can Constraints and Shrinkage Improve Persistence?}
+From an investment-management perspective, Task 8 matters because unconstrained mean-variance portfolios can be economically implausible even when they look attractive in sample. We therefore test whether a simple no-short-selling constraint, and then Bayes-Stein shrinkage as a cross-check, produce more credible out-of-sample behavior \parencite{jagannathan2003}.
 
-\paragraph{SMB-specific caveat.}
-The SMB proxy is long-only small-cap exposure (IJR), not a strict long-short SMB construction. Differences in SMB weight signs and magnitudes versus FF factors are therefore expected and should be treated as design-consistent.
+The full-sample constraint results show why this extension is useful. For FF3, unconstrained tangency Sharpe is 0.2832, but it relies on gross leverage of 74.66; imposing $w_i \geq 0$ reduces Sharpe to 0.2387 while making the portfolio implementable. The same constraint leaves FF5 with a relatively small Sharpe loss, from 0.2972 to 0.2726, which already suggests that FF5 is structurally more stable than FF3 or Proxy5.
 
-\subsection{In-Sample vs Out-of-Sample Stability (Task 7)}
-Keep Scope 7 as a standalone section since it answers a different question: whether in-sample frontier winners remain competitive out-of-sample.
-\begin{itemize}[leftmargin=1.2em]
-  \item IS vs OOS Sharpe table for selected industry and FF5 portfolios.
-  \item Jobson-Korkie equality tests (classic benchmark).
-  \item Ledoit-Wolf equality tests (robust benchmark).
-  \item One short conclusion sentence per portfolio: ``survives'' or ``does not survive'' OOS.
-\end{itemize}
+\begin{table}[H]
+\centering
+\caption{Task 8: constrained persistence under $w_i \geq 0$}
+\label{tab:scope8}
+\small
+\resizebox{0.82\textwidth}{!}{\input{tables/scope8_2_decision_compact.tex}}
+\end{table}
 
-The in-sample window ends in December 2002 and the out-of-sample window ends in December 2025, following the assignment brief. We evaluate whether portfolios selected from first-period frontiers (at minimum GMV and tangency for industries and FF5) retain comparable Sharpe performance in the second period. Reporting both Jobson-Korkie and Ledoit-Wolf results provides a side-by-side view of classical versus robust inference.
-
-\subsection{Extension and Fund Evaluation (Tasks 8-9)}
-Task 8 should include one clearly motivated extension (constraint or alternative method) and Task 9 should benchmark three mutual funds against market/proxy/tangency alternatives.
-\begin{itemize}[leftmargin=1.2em]
-  \item For Task 8, keep one extension only unless additional variants clearly add insight.
-  \item For Task 9, report all three funds in one compact comparison table plus one synthesis paragraph.
-\end{itemize}
-
-For Task 8, the preferred extension is a constrained tangency specification (or one additional robust allocation method) with clear investment interpretation. For Task 9, benchmarks should include a market proxy, relevant factor-proxy portfolios, and tangency-based benchmarks where meaningful.
-
-\IfFileExists{tables/task23_gmv_final.tex}{\input{tables/task23_gmv_final.tex}}{}
-\IfFileExists{tables/task23_tan_final.tex}{\input{tables/task23_tan_final.tex}}{}
-\IfFileExists{tables/scope2_presentation.tex}{\input{tables/scope2_presentation.tex}}{}
-\IfFileExists{tables/scope3_comparison_presentation.tex}{\input{tables/scope3_comparison_presentation.tex}}{}
-\IfFileExists{tables/scope3_window_summary.tex}{\input{tables/scope3_window_summary.tex}}{}
-\IfFileExists{tables/scope5_presentation.tex}{\input{tables/scope5_presentation.tex}}{}
-\IfFileExists{tables/scope6_pairwise_presentation.tex}{\input{tables/scope6_pairwise_presentation.tex}}{}
-\IfFileExists{tables/scope7_decision_presentation.tex}{\input{tables/scope7_decision_presentation.tex}}{}
-
-\section{Discussion}
-The main cross-task pattern is that estimator and sample-design choices materially affect frontier location and tangency composition, while broad ranking conclusions are often more stable than raw weights. This is most visible when moving from industries to stocks and when changing overlap windows.
-
-A second pattern is the implementability tradeoff: theoretical factor frontiers and investable proxy frontiers are directionally aligned but not identical. This gap is informative rather than problematic, because the assignment explicitly asks for practical replication under realistic constraints.
-
-A third pattern is stability risk. Strong in-sample Sharpe rankings do not automatically survive out of sample, so formal IS/OOS testing is necessary before making allocation claims.
-
-Key caveats are mapping assumptions, proxy purity, finite-sample error, and sensitivity to window alignment.
+Table~\ref{tab:scope8} confirms that the no-short constraint improves persistence selectively. In the constrained run, Industries and FF5 show no significant in-sample to out-of-sample Sharpe deterioration, whereas Proxy5 still deteriorates sharply. A separate shrinkage sensitivity check points in the same direction but is weaker: for unconstrained tangency portfolios, the industry Sharpe drop improves only modestly from -0.2560 under the sample estimator to -0.2344 under joint mean-and-covariance shrinkage, while FF5 changes very little across shrinkage variants. The extension therefore supports a narrow conclusion: simple constraints do more to improve persistence than shrinkage alone, and the benefit is strongest in the universes that were already less dependent on extreme leverage.
 
 \section{Conclusion}
-Three conclusions should anchor the final submission once all numbers are finalized.
-\begin{enumerate}[leftmargin=1.2em]
-  \item In-sample, shrinkage-based estimators generally produce more credible tangency results than pure sample estimates.
-  \item Out-of-sample, only a subset of in-sample winners remain statistically persuasive once Sharpe-equality tests are applied.
-  \item From an implementation perspective, investable proxy constructions are useful when exposure limitations are disclosed clearly and benchmarked against theoretical factor sets.
-\end{enumerate}
+Three findings summarize the report. First, shrinkage moderates in-sample optimism, but in a long sample its effect on frontier shape is modest rather than transformative. Second, sample alignment matters materially: the industry-versus-stock result changes far more with the matched window than with the estimator. Third, constrained portfolios are more credible than unconstrained tangency portfolios when persistence is the objective, with the strongest evidence coming from industries and FF5.
 
-The final version should end with one explicit allocation recommendation and one explicit risk to that recommendation.
-
-% NOTE (open): finish with explicit bottom line, allocation recommendation, and key risk.
-
-\newpage
-\section*{References}
-\bibliographystyle{plainnat}
-\bibliography{references}
-
-\appendix
-\section{Appendix A: Additional Method Details}
-Put formulas, estimator details, and implementation specifics here.
-
-\section{Appendix B: Supplementary Tables/Figures}
-Fixed-origin/fixed-scale comparability figures used for strict cross-figure checks:
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope2_anchored_origin_common_limits.png}{Placeholder: Scope 2 anchored-origin common-limits comparability}
-  \caption{Scope 2 appendix comparability plot (fixed-origin framing).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope3_with_coal_anchored_origin_common_limits.png}{Placeholder: Scope 3 with-coal anchored-origin common-limits comparability}
-  \caption{Scope 3 (\texttt{with\_coal\_30}) appendix comparability plot (fixed-origin framing).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope3_with_coal_anchored_origin_non_common_limits.png}{Placeholder: Scope 3 with-coal anchored-origin non-common limits}
-  \caption{Scope 3 (\texttt{with\_coal\_30}) appendix exception plot (anchored origin, non-common limits).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope3_drop_coal_anchored_origin_common_limits.png}{Placeholder: Scope 3 no-coal anchored-origin common-limits comparability}
-  \caption{Scope 3 (\texttt{drop\_coal\_29}) appendix comparability plot (fixed-origin framing).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope5_anchored_origin_common_limits.png}{Placeholder: Scope 5 anchored-origin common-limits comparability}
-  \caption{Scope 5 appendix comparability plot (fixed-origin framing).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope6_overlay_anchored_origin_common_limits.png}{Placeholder: Scope 6 overlay anchored-origin common-limits comparability}
-  \caption{Scope 6 overlay appendix comparability plot (fixed-origin framing).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope6_panels_anchored_origin_common_limits.png}{Placeholder: Scope 6 panels anchored-origin common-limits comparability}
-  \caption{Scope 6 two-panel appendix comparability plot (fixed-origin framing).}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \reportfigorplaceholder{appendix_scope6_ff3_anchored_origin_non_common_limits.png}{Placeholder: Scope 6 FF3 anchored-origin non-common limits}
-  \caption{Scope 6 appendix exception plot for FF3 instability (anchored origin, non-common limits).}
-\end{figure}
-
-\section{Appendix C: Contribution Statement}
-Mirror required submission-form contribution details.
+\printbibliography
 
 \end{document}
