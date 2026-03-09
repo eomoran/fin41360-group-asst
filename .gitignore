@@ -1,43 +1,11 @@
-# OS-specific cruft
-.DS_Store
-Thumbs.db
+# LaTeX build artifacts
+*.aux
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.run.xml
 
-# Python bytecode / caches
-__pycache__/
-**/__pycache__/
-fin41360/__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
-.venv/
-.venv*/
-venv/
-env/
-
-# Jupyter / IPython
-.ipynb_checkpoints/
-
-# Editor / IDE
-.vscode/
-.idea/
-.cursor/
-
-# FIN41360 assignment data (large, reproducible)
-fin41360_data/raw/
-fin41360_data/processed/
-
-# Temporary files
-*.log
-*.tmp
-*.bak
-
-# Local project cache
-.cache/
-
-# Archived report figures
-report/figures/archive*/
-
-# Generated report artifacts
-report/figures/*
-report/tables/*
+# Local tool history
+*.Rhistory
