@@ -1,0 +1,4 @@
+Universe,IS Sharpe,OOS Sharpe,$\Delta$ Sharpe,LW p-value,Decision
+Industries,0.22186245732800683,0.19950913271616996,-0.022353324611836867,0.799,No significant deterioration (alpha=0.05)
+FF5,0.30586522534104243,0.2618605226511862,-0.044004702689856234,0.748,No significant deterioration (alpha=0.05)
+Proxy5,0.3969170255830341,0.13243535159441402,-0.2644816739886201,0.025,Significant IS->OOS deterioration (alpha=0.05)

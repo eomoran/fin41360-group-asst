@@ -1,0 +1,16 @@
+Scenario,Window (N),Universe,Estimator,TAN Sharpe,$\Delta$ vs Sample
+Scope 2,1980-01 to 2025-12 (552),Industry,Sample,0.3059276542997621,0.0
+Scope 2,1980-01 to 2025-12 (552),Industry,BS($\mu$),0.3052357563622616,-0.0006918979375005185
+Scope 2,1980-01 to 2025-12 (552),Industry,"BS($\mu,\Sigma$)",0.3013602895930064,-0.004567364706755672
+Scope 3 (with coal),2017-05 to 2025-11 (103),Industry,Sample,0.7710646394059558,0.0
+Scope 3 (with coal),2017-05 to 2025-11 (103),Industry,BS($\mu$),0.7683466889535637,-0.0027179504523920928
+Scope 3 (with coal),2017-05 to 2025-11 (103),Industry,"BS($\mu,\Sigma$)",0.6453204040396909,-0.1257442353662649
+Scope 3 (with coal),2017-05 to 2025-11 (103),Stock,Sample,0.654599477451245,0.0
+Scope 3 (with coal),2017-05 to 2025-11 (103),Stock,BS($\mu$),0.6490150784586812,-0.005584398992563799
+Scope 3 (with coal),2017-05 to 2025-11 (103),Stock,"BS($\mu,\Sigma$)",0.59331567285277,-0.061283804598475045
+Scope 3 (drop coal),1992-05 to 2025-11 (403),Industry,Sample,0.35275333028594663,0.0
+Scope 3 (drop coal),1992-05 to 2025-11 (403),Industry,BS($\mu$),0.35199659721752946,-0.0007567330684171703
+Scope 3 (drop coal),1992-05 to 2025-11 (403),Industry,"BS($\mu,\Sigma$)",0.34576529073634676,-0.006988039549599867
+Scope 3 (drop coal),1992-05 to 2025-11 (403),Stock,Sample,0.33214297406645643,0.0
+Scope 3 (drop coal),1992-05 to 2025-11 (403),Stock,BS($\mu$),0.33096334596376825,-0.0011796281026881794
+Scope 3 (drop coal),1992-05 to 2025-11 (403),Stock,"BS($\mu,\Sigma$)",0.3331823888301026,0.0010394147636461626

@@ -14,7 +14,7 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage[backend=biber,style=apa]{biblatex}
 \usepackage{fancyhdr}
-\addbibresource{../report_samples/group_11_prm.bib}
+\addbibresource{references.bib}
 
 \setstretch{1.08}
 \setlength{\parskip}{0.35em}
@@ -30,11 +30,12 @@
 \title{FIN41360 Portfolio and Risk Management\\
 \large Group Assignment 1: Portfolio Choice and Performance Evaluation}
 \author{\textbf{Group 11}\\[0.4em]
-\footnotesize Aadil Haris (X) \quad Jasveen Kaur (25219948) \quad Tobias Mella (24273004)\\[0.2em]
-\footnotesize Eoin Moran (25252950) \quad Kevin O'Regan (X)}
+\footnotesize Aadil Haris (25235473) \quad Jasveen Kaur (25219948) \quad Tobias Mella (24273004)\\[0.2em]
+\footnotesize Eoin Moran (25252950) \quad Kevin O'Regan (25202821)}
 \date{\today}
 
 \begin{document}
+\raggedright
 \hypersetup{pageanchor=false}
 \pagenumbering{gobble}
 \begin{titlepage}
@@ -105,14 +106,14 @@ Following the French data legends, the core inputs are monthly value-weighted 30
 
 We report the global minimum-variance (GMV) portfolio, the tangency portfolio, and the Sharpe ratio. Bayes-Stein shrinkage is used to regularize sample means toward a common target in the spirit of \textcite{jorion1986}; where stated, covariance shrinkage is added as a second layer of regularization. Because the factor portfolios are reported in excess-return form, industry and proxy returns are also converted to excess returns when they are compared with FF3 and FF5.
 
-\section{Tasks 2--4: Industry Frontier and Opportunity Set Comparisons}
+\section{Industry Frontier and Opportunity Set Comparisons}
 \subsection{Task 2: 30 Industry Portfolios}
 Figure~\ref{fig:scope2} plots the monthly efficient frontiers for the 30 industries under three estimators: sample moments, Bayes-Stein mean shrinkage, and Bayes-Stein mean-plus-covariance shrinkage. The ordering is economically intuitive. The sample frontier is the most optimistic because it loads directly on noisy sample means, while the two shrinkage frontiers lie slightly inside it because regularization pulls the optimizer away from extreme return forecasts.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.78\textwidth]{figures/report_scope2.png}
-  \caption{Efficient frontiers for the 30 industry portfolios under sample estimation, Bayes-Stein mean shrinkage, and Bayes-Stein mean-plus-covariance shrinkage, 1980-01 to 2025-12. Shrinkage moves the frontier slightly inward, with the largest effect at the tangency portfolio rather than at the GMV portfolio.}
+  \includegraphics[width=0.9\textwidth]{figures/report_scope2.png}
+  \caption{Efficient frontiers for the 30 industry portfolios under sample estimation, Bayes-Stein mean shrinkage, and Bayes-Stein mean-plus-covariance shrinkage. Shrinkage moves the frontier slightly inward, with the largest effect at the tangency portfolio rather than at the GMV portfolio.}
   \label{fig:scope2}
 \end{figure}
 
@@ -121,21 +122,21 @@ Figure~\ref{fig:scope2} plots the monthly efficient frontiers for the 30 industr
 \caption{Task 2: GMV and tangency portfolio statistics}
 \label{tab:scope2}
 \small
-\begin{tabular}{llrrr}
+\begin{tabular}{llrrrr}
 \toprule
-Portfolio & Estimator & Mean & Volatility & Sharpe \\
+Portfolio & Estimator & Mean & Excess Return & Volatility & Sharpe \\
 \midrule
-GMV & Sample & 0.0097 & 0.0314 & 0.2050 \\
-GMV & BS($\mu$) & 0.0097 & 0.0314 & 0.2051 \\
-GMV & BS($\mu,\Sigma$) & 0.0098 & 0.0316 & 0.2059 \\
-TAN & Sample & 0.0176 & 0.0469 & 0.3059 \\
-TAN & BS($\mu$) & 0.0176 & 0.0467 & 0.3052 \\
-TAN & BS($\mu,\Sigma$) & 0.0172 & 0.0462 & 0.3014 \\
+GMV & Sample & 0.0097 & 0.0064 & 0.0314 & 0.2050 \\
+GMV & BS($\mu$) & 0.0097 & 0.0064 & 0.0314 & 0.2051 \\
+GMV & BS($\mu,\Sigma$) & 0.0098 & 0.0065 & 0.0316 & 0.2059 \\
+TAN & Sample & 0.0176 & 0.0143 & 0.0469 & 0.3059 \\
+TAN & BS($\mu$) & 0.0176 & 0.0143 & 0.0467 & 0.3052 \\
+TAN & BS($\mu,\Sigma$) & 0.0172 & 0.0139 & 0.0462 & 0.3014 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:scope2} shows that the GMV portfolio is almost unchanged across estimators, which is expected because it depends mainly on the covariance matrix. The tangency portfolio is more sensitive because it uses expected returns directly. In this long sample the effect is modest rather than dramatic: Bayes-Stein mean shrinkage leaves tangency Sharpe almost unchanged, and adding covariance shrinkage lowers it only slightly from 0.3059 to 0.3014. The main result is therefore not that shrinkage transforms the opportunity set, but that it mildly reduces in-sample optimism without changing the qualitative ranking of feasible portfolios.
+Table~\ref{tab:scope2} shows that the GMV portfolio is almost unchanged across estimators, which is expected because it depends mainly on the covariance matrix. Reporting excess returns makes the same point: GMV excess performance is very similar across estimators, while the tangency portfolio remains the higher-Sharpe risky allocation. In this long sample the effect is modest rather than dramatic: Bayes-Stein mean shrinkage leaves tangency Sharpe almost unchanged, and adding covariance shrinkage lowers it only slightly from 0.3059 to 0.3014. The main result is therefore not that shrinkage transforms the opportunity set, but that it mildly reduces in-sample optimism without changing the qualitative ranking of feasible portfolios.
 
 \subsection{Task 3: 30 Industries vs 30 Individual Stocks}
 To make the stock-industry comparison meaningful, both universes are estimated on the same sample window. The main comparison uses the longer common window obtained after dropping Coal, 1992-05 to 2025-11 (403 months); retaining Coal shortens the overlap to 2017-05 to 2025-11 and is treated only as a sensitivity check.
@@ -164,21 +165,21 @@ Adding the risk-free asset changes the efficient set from the upper branch of th
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.78\textwidth]{figures/report_scope4.png}
-  \caption{Industry frontier with the risk-free asset added, 1980-01 to 2025-12. The capital market line is tangent to the risky frontier at the tangency portfolio, making that portfolio the relevant risky benchmark once borrowing and lending are allowed.}
+  \includegraphics[width=0.9\textwidth]{figures/report_scope4.png}
+  \caption{Industry frontier with the risk-free asset added. The capital market line is tangent to the risky frontier at the tangency portfolio, making that portfolio the relevant risky benchmark once borrowing and lending are allowed.}
   \label{fig:scope4}
 \end{figure}
 
 Relative to Task 2, the main implication is that the tangency portfolio becomes the only relevant risky benchmark once borrowing and lending at the average sample risk-free rate are allowed. The risky-only GMV portfolio still exists, but it is no longer the key object for efficient allocation.
 
-\section{Tasks 5 and 6: Factors and Practical Proxies}
+\section{Factors and Practical Proxies}
 \subsection*{FF3 and FF5 in excess-return space}
 To compare industries with Fama-French factors, all series are expressed in excess-return form and estimated over the full 1980-01 to 2025-12 sample \parencite{fama1993,fama2015}. Figure~\ref{fig:scope5} shows that FF3 lies well inside the industry opportunity set, whereas FF5 achieves almost the same tangency Sharpe as industries with much lower volatility. This indicates that the five-factor specification spans the relevant return trade-off more efficiently than FF3 in this full sample, even though its expected returns are lower in absolute terms.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.82\textwidth]{figures/report_scope5.png}
-  \caption{Industry, FF3, and FF5 efficient sets in excess-return space, 1980-01 to 2025-12. FF3 lies inside the industry opportunity set, while FF5 delivers a tangency portfolio with a similar Sharpe ratio at much lower volatility.}
+  \includegraphics[width=0.92\textwidth]{figures/report_scope5.png}
+  \caption{Industry, FF3, and FF5 efficient sets in excess-return space. FF3 lies inside the industry opportunity set, while FF5 delivers a tangency portfolio with a similar Sharpe ratio at much lower volatility.}
   \label{fig:scope5}
 \end{figure}
 
@@ -204,7 +205,7 @@ Task 6 is estimated on the shorter common proxy window, 2013-08 to 2025-12, so i
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{figures/report_scope6_panels.png}
-  \caption{Academic factor frontiers versus practical proxy frontiers in the common proxy window, 2013-08 to 2025-12. Proxy5 remains close to FF5, while Proxy3 differs more visibly from FF3 despite achieving a similar tangency Sharpe ratio.}
+  \caption{Academic factor frontiers versus practical proxy frontiers in the common proxy window. Proxy5 remains close to FF5, while Proxy3 differs more visibly from FF3 despite achieving a similar tangency Sharpe ratio.}
   \label{fig:scope6}
 \end{figure}
 
@@ -225,7 +226,8 @@ FF5 vs Proxy5 & 0.2972 & 0.3013 \\
 
 The practical implication is narrower than before: in the short proxy window, both proxy baskets preserve tangency Sharpe reasonably well, but Proxy3 reaches that result through a different, more implementable construction. Task 6 is therefore best read as an implementability comparison on a shorter sample, not as a direct continuation of the full-sample Task 5 ranking.
 
-\section{Task 7: In-Sample vs Out-of-Sample Persistence}
+\section{Persistence and Constraints}
+\subsection{Task 7: In-Sample vs Out-of-Sample Persistence}
 The persistence test splits the sample into two contiguous periods, 1980-01 to 2002-12 and 2003-01 to 2025-12, and evaluates the GMV and tangency portfolios chosen in the first period. Table~\ref{tab:scope7} reports in-sample and out-of-sample Sharpe ratios together with Jobson-Korkie and Ledoit-Wolf tests for equality of Sharpe ratios \parencite{JobsonKorkie1981,LedoitWolf2008}. Ledoit-Wolf is treated as the primary decision rule because it is more robust; Jobson-Korkie is reported as a classical cross-check.
 
 \begin{table}[H]
@@ -238,10 +240,10 @@ The persistence test splits the sample into two contiguous periods, 1980-01 to 2
 
 The answer to the brief is clear. The in-sample tangency portfolios do not remain efficient out of sample in any strong sense: both 30-industry TAN and FF5 TAN suffer statistically significant Sharpe deterioration under Ledoit-Wolf. By contrast, 30-industry GMV does not show significant deterioration, and FF5 GMV is borderline, with Jobson-Korkie rejecting but Ledoit-Wolf not rejecting at the 5\% level. That disagreement is not especially surprising: Jobson-Korkie is more dependent on iid normal-return approximations, whereas Ledoit-Wolf is designed to be more robust when those assumptions are doubtful \parencite{JobsonKorkie1981,LedoitWolf2008}. Persistence is therefore much stronger for conservative low-risk portfolios than for high-Sharpe in-sample tangency picks.
 
-\section{Task 8 Extension: Can Constraints and Shrinkage Improve Persistence?}
-From an investment-management perspective, Task 8 matters because unconstrained mean-variance portfolios can be economically implausible even when they look attractive in sample. We therefore test whether a simple no-short-selling constraint, and then Bayes-Stein shrinkage as a cross-check, produce more credible out-of-sample behavior \parencite{jagannathan2003}.
+\subsection{Task 8: Can Constraints and Shrinkage Improve Persistence?}
+From an investment-management perspective, Task 8 matters because unconstrained mean-variance portfolios can be statistically fragile and economically non-robust even when they look attractive in sample. We therefore test whether a simple no-short-selling constraint, and then Bayes-Stein shrinkage as a cross-check, produce more credible out-of-sample behavior \parencite{jagannathan2003}.
 
-The full-sample constraint results show why this extension is useful. For FF3, unconstrained tangency Sharpe is 0.2832, but it relies on gross leverage of 74.66; imposing $w_i \geq 0$ reduces Sharpe to 0.2387 while making the portfolio implementable. The same constraint leaves FF5 with a relatively small Sharpe loss, from 0.2972 to 0.2726, which already suggests that FF5 is structurally more stable than FF3 or Proxy5.
+The full-sample constraint results show why this extension is useful. For FF3, unconstrained tangency Sharpe is 0.2832, but it relies on gross leverage of 74.66; imposing $w_i \geq 0$ reduces Sharpe to 0.2387, but it also removes the extreme leverage that signals sensitivity to estimation error. The issue is therefore not only implementability: the unconstrained FF3 solution is also less likely to retain its in-sample Sharpe out of sample. The same constraint leaves FF5 with a relatively small Sharpe loss, from 0.2972 to 0.2726, which already suggests that FF5 is structurally more stable than FF3 or Proxy5.
 
 \begin{table}[H]
 \centering
@@ -251,11 +253,23 @@ The full-sample constraint results show why this extension is useful. For FF3, u
 \resizebox{0.82\textwidth}{!}{\input{tables/scope8_2_decision_compact.tex}}
 \end{table}
 
-Table~\ref{tab:scope8} confirms that the no-short constraint improves persistence selectively. In the constrained run, Industries and FF5 show no significant in-sample to out-of-sample Sharpe deterioration, whereas Proxy5 still deteriorates sharply. A separate shrinkage sensitivity check points in the same direction but is weaker: for unconstrained tangency portfolios, the industry Sharpe drop improves only modestly from -0.2560 under the sample estimator to -0.2344 under joint mean-and-covariance shrinkage, while FF5 changes very little across shrinkage variants. The extension therefore supports a narrow conclusion: simple constraints do more to improve persistence than shrinkage alone, and the benefit is strongest in the universes that were already less dependent on extreme leverage.
+Table~\ref{tab:scope8} confirms that the no-short constraint improves persistence selectively. In the constrained run, Industries and FF5 show no significant in-sample to out-of-sample Sharpe deterioration, whereas Proxy5 still deteriorates sharply. More broadly, the no-short constraint helps not only because it is easier to implement, but because it regularizes the optimization problem by ruling out the extreme leverage that often reflects overfitting to noisy expected returns.
 
-\section{Conclusion}
-Three findings summarize the report. First, shrinkage moderates in-sample optimism, but in a long sample its effect on frontier shape is modest rather than transformative. Second, sample alignment matters materially: the industry-versus-stock result changes far more with the matched window than with the estimator. Third, constrained portfolios are more credible than unconstrained tangency portfolios when persistence is the objective, with the strongest evidence coming from industries and FF5.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/report_scope8_2_ff5.png}
+  \caption{FF5 in-sample and out-of-sample efficient frontiers under the no-short constraint. The selected in-sample portfolios remain close in risk-return space to the out-of-sample efficient set.}
+  \label{fig:scope8_ff5}
+\end{figure}
 
+Figure~\ref{fig:scope8_ff5} adds a more economic interpretation for FF5: within the no-short constrained case, the out-of-sample efficient allocation remains close in risk-return space to a convex combination of the in-sample constrained GMV and tangency portfolios, suggesting that this frontier is comparatively stable across subsamples.
+
+A separate shrinkage sensitivity check points in the same direction but is weaker: for unconstrained tangency portfolios, the industry Sharpe drop improves only modestly from -0.2560 under the sample estimator to -0.2344 under joint mean-and-covariance shrinkage, while FF5 changes very little across shrinkage variants. The extension therefore supports a narrow conclusion: simple constraints do more to improve persistence than shrinkage alone, and the benefit is strongest in the universes that were already less dependent on extreme leverage.
+
+\section*{Conclusion}
+Three findings summarize the report. First, shrinkage moderates in-sample optimism, but in a long sample its effect on frontier shape is modest rather than transformative. Second, sample alignment matters materially: the industry-versus-stock result changes far more with the matched window than with the estimator. Third, constrained portfolios are more credible because they are less sensitive to estimation error and persist better out of sample, with the strongest evidence coming from industries and FF5.
+
+\clearpage
 \printbibliography
 
 \end{document}
