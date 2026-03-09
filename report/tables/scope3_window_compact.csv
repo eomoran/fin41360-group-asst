@@ -1,0 +1,3 @@
+Scenario,Start,End,N Obs
+with coal (30),2017-05,2025-11,103
+drop coal (29),1992-05,2025-11,403

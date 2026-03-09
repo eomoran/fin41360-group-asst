@@ -1,11 +1,28 @@
 # LaTeX build artifacts
 *.aux
 *.bcf
+*.bbl
 *.blg
 *.fdb_latexmk
 *.fls
+*.log
 *.out
 *.run.xml
 
 # Local tool history
 *.Rhistory
+
+# OS/editor metadata
+.DS_Store
+.cursor/
+.vscode/
+.venv39/
+
+# Python caches
+__pycache__/
+
+# Local data/cache outputs
+fin41360_data/
+
+# Archived figure scratch space
+report/figures/archive_legacy/

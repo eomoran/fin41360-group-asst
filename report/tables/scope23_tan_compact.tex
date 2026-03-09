@@ -1,0 +1,25 @@
+\begin{tabular}{lllrrr}
+\toprule
+Scenario & Window (N) & Universe & Estimator & TAN Sharpe & $\Delta$ vs Sample \\
+\midrule
+\rowcolor{gray!8}
+Scope 2 & 1980-01 to 2025-12 (552) & Industry & Sample & 0.3059 & 0.0000 \\
+ &  & Industry & BS($\mu$) & 0.3052 & -0.0007 \\
+ &  & Industry & BS($\mu,\Sigma$) & 0.3014 & -0.0046 \\
+\cmidrule(lr){3-6}
+Scope 3 (with coal) & 2017-05 to 2025-11 (103) & Industry & Sample & 0.7711 & 0.0000 \\
+ &  & Industry & BS($\mu$) & 0.7683 & -0.0027 \\
+ &  & Industry & BS($\mu,\Sigma$) & 0.6453 & -0.1257 \\
+ &  & Stock & Sample & 0.6546 & 0.0000 \\
+ &  & Stock & BS($\mu$) & 0.6490 & -0.0056 \\
+ &  & Stock & BS($\mu,\Sigma$) & 0.5933 & -0.0613 \\
+\cmidrule(lr){3-6}
+\rowcolor{gray!8}
+Scope 3 (drop coal) & 1992-05 to 2025-11 (403) & Industry & Sample & 0.3528 & 0.0000 \\
+ &  & Industry & BS($\mu$) & 0.3520 & -0.0008 \\
+ &  & Industry & BS($\mu,\Sigma$) & 0.3458 & -0.0070 \\
+ &  & Stock & Sample & 0.3321 & 0.0000 \\
+ &  & Stock & BS($\mu$) & 0.3310 & -0.0012 \\
+ &  & Stock & BS($\mu,\Sigma$) & 0.3332 & 0.0010 \\
+\bottomrule
+\end{tabular}
